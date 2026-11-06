@@ -44,6 +44,7 @@ final class AppsScreen extends Screen {
     }
 
     @Override void refresh() {
+        if (root == null) return;
         List<AppsRepo.AppInfo> l = App.I.apps.list();
         boolean off = P.officialIcons();
         if (l.size() == shownFor && off == shownOfficial && grid.getChildCount() > 0) return;

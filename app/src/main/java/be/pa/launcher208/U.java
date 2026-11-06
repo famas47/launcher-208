@@ -81,6 +81,10 @@ final class U {
 
     static void spacing(TextView t, float px, float size) { t.setLetterSpacing(px / size); }
 
+    static void text(TextView t, CharSequence s) {
+        if (!android.text.TextUtils.equals(t.getText(), s)) t.setText(s);
+    }
+
     // ---------- Fonds ----------
     static GradientDrawable rr(int color, float r) {
         GradientDrawable g = new GradientDrawable();

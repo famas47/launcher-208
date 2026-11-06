@@ -56,10 +56,14 @@ final class SettingsScreen extends Screen {
             @Override public void on(int v) { P.put(P.NIGHT_BY, v); a.rebuildForSettings(); }
         })), true);
         nightRange = U.tv(a, "", 15, Pal.text, 600);
-        nightRangeRow = row("Plage de nuit", "Touche pour changer", valueBtn(nightRange, new Runnable() {
+        // La ligne de séparation est dans le même bloc : elle disparaît avec la rangée (pas de double trait)
+        LinearLayout nightBox = U.col(a);
+        nightBox.addView(row("Plage de nuit", "Touche pour changer", valueBtn(nightRange, new Runnable() {
             @Override public void run() { pickNightRange(); }
-        }));
-        add(s, nightRangeRow, true);
+        })), U.lp(U.M, U.WR));
+        nightBox.addView(U.line(a));
+        nightRangeRow = nightBox;
+        add(s, nightBox, false);
         add(s, row("Fluidité", "Images par seconde", Widgets.seg(a, new String[]{"Max", "30"}, P.i(P.FLUID, 0), new Widgets.IntCb() {
             @Override public void on(int v) { P.put(P.FLUID, v); }
         })), true);

@@ -4,8 +4,11 @@ import android.content.Context;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.util.ArrayList;
 
 /** Trajets enregistrés (fichier texte léger, 60 jours gardés). */
@@ -38,7 +41,7 @@ final class TripStore {
         BufferedReader r = null;
         try {
             if (!file.exists()) return;
-            r = new BufferedReader(new FileReader(file));
+            r = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
             String line;
             while ((line = r.readLine()) != null) {
                 String[] p = line.split("\t");
@@ -63,10 +66,10 @@ final class TripStore {
     }
 
     private synchronized void save() {
-        FileWriter w = null;
+        Writer w = null;
         try {
             File tmp = new File(file.getPath() + ".tmp");
-            w = new FileWriter(tmp);
+            w = new OutputStreamWriter(new FileOutputStream(tmp), "UTF-8");
             for (Trip t : trips) {
                 w.write(t.start + "\t" + t.end + "\t" + t.km + "\t" + t.maxKmh + "\n");
             }

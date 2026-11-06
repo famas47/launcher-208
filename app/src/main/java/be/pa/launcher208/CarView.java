@@ -31,7 +31,6 @@ final class CarView extends View {
     private int viewIdx;
     private String forced; // image de portière
     private float downX;
-    Runnable onUserTurn;
 
     CarView(Context c) {
         super(c);
@@ -96,7 +95,6 @@ final class CarView extends View {
         if (forced != null) return;
         viewIdx = (viewIdx + dir + VIEWS.length) % VIEWS.length;
         swap(load(getContext(), VIEWS[viewIdx]));
-        if (onUserTurn != null) onUserTurn.run();
     }
 
     private void swap(Bitmap b) {

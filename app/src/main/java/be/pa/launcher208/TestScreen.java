@@ -146,12 +146,12 @@ final class TestScreen extends Screen {
         check(s, "Lecture partagée", new Status() {
             @Override public String get() { return App.I.media.sessionsSummary(); }
         }, null, null);
-        LinearLayout rr = row(s, "Boutons radio (le son doit réagir)");
-        rr.addView(btn("⏮", mediaKey(KeyEvent.KEYCODE_MEDIA_PREVIOUS)));
+        LinearLayout rr = btnRow(s, "Boutons radio (le son doit réagir)");
+        rr.addView(btn("Précédente", mediaKey(KeyEvent.KEYCODE_MEDIA_PREVIOUS)));
         rr.addView(U.gap(a, 8, 1));
-        rr.addView(btn("⏯", mediaKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)));
+        rr.addView(btn("Pause / lecture", mediaKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)));
         rr.addView(U.gap(a, 8, 1));
-        rr.addView(btn("⏭", mediaKey(KeyEvent.KEYCODE_MEDIA_NEXT)));
+        rr.addView(btn("Suivante", mediaKey(KeyEvent.KEYCODE_MEDIA_NEXT)));
         s.addView(U.line(a));
 
         s = section(c2, "GPS, heure et nuit");
@@ -192,7 +192,7 @@ final class TestScreen extends Screen {
         check(s, "Source des portières", new Status() {
             @Override public String get() { return App.I.doors.source; }
         }, null, null);
-        LinearLayout dr = row(s, "Montrer sur l'accueil");
+        LinearLayout dr = btnRow(s, "Montrer sur l'accueil");
         dr.addView(btn("Av G", door(Doors.FL)));
         dr.addView(U.gap(a, 6, 1));
         dr.addView(btn("Ar G", door(Doors.RL)));
@@ -246,6 +246,14 @@ final class TestScreen extends Screen {
         TextView t = U.tvMulti(a, title, 14, Pal.text, 600, 2);
         r.addView(t, new LinearLayout.LayoutParams(0, U.WR, 1));
         s.addView(r, U.lp(U.M, U.WR));
+        return r;
+    }
+
+    /** Titre sur une ligne, boutons sur la ligne en dessous (pour les rangées de plusieurs boutons). */
+    private LinearLayout btnRow(LinearLayout s, String title) {
+        s.addView(U.tv(a, title, 14, Pal.text, 600), U.lpm(U.M, U.WR, 0, 10, 0, 8));
+        LinearLayout r = U.row(a);
+        s.addView(r, U.lpm(U.M, U.WR, 0, 0, 0, 10));
         return r;
     }
 

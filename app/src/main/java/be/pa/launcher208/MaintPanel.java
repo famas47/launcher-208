@@ -65,7 +65,7 @@ final class MaintPanel {
                         });
             }
         });
-        tires = card(R.drawable.ic_tire, 0xFFFDE2E2, 0xFFDC2626, "Pression des pneus", new Runnable() {
+        tires = card(R.drawable.ic_tire, Pal.night ? 0xFF2E1A1A : 0xFFFDE2E2, Pal.bad, "Pression des pneus", new Runnable() {
             @Override public void run() {
                 a.dialog().setTitle("Pression des pneus")
                         .setMessage("Tu viens de vérifier la pression ? Le rappel repartira pour un mois.")

@@ -94,13 +94,20 @@ final class MiniMap {
         }
     }
 
+    private double followLat, followLon;
+    private byte followZoom;
+
     void follow(double lat, double lon, float kmh) {
         if (mv == null || (lat == 0 && lon == 0)) return;
+        byte z = kmh > 90 ? (byte) 14 : kmh > 55 ? (byte) 15 : (byte) 16;
+        if (lat == followLat && lon == followLon && z == followZoom) return; // rien n'a bougé : pas de calcul
+        followLat = lat;
+        followLon = lon;
+        followZoom = z;
         try {
             LatLong ll = new LatLong(lat, lon);
             if (P.fluidMax()) mv.getModel().mapViewPosition.animateTo(ll);
             else mv.getModel().mapViewPosition.setCenter(ll);
-            byte z = kmh > 90 ? (byte) 14 : kmh > 55 ? (byte) 15 : (byte) 16;
             if (mv.getModel().mapViewPosition.getZoomLevel() != z) mv.getModel().mapViewPosition.setZoomLevel(z, P.fluidMax());
         } catch (Throwable ignored) { }
         lookupStreet(lat, lon);

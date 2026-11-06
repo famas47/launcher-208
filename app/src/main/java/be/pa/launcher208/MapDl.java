@@ -172,15 +172,17 @@ final class MapDl {
     }
 
     private void copy(InputStream in, File part, long size) throws Exception {
-        File dir = part.getParentFile();
-        if (dir != null && !dir.exists()) dir.mkdirs();
-        OutputStream out = new FileOutputStream(part, false);
-        byte[] buf = new byte[64 * 1024];
-        int n;
-        done = 0;
-        total = size;
-        long lastUi = 0;
+        OutputStream out = null;
         try {
+            File dir = part.getParentFile();
+            if (dir != null && !dir.exists() && !dir.mkdirs()) throw new Exception("dossier de la carte impossible à créer");
+            if (dir != null && size > 0 && dir.getUsableSpace() < size + 50L * 1024 * 1024) throw new Exception("pas assez de place sur l'autoradio");
+            out = new FileOutputStream(part, false);
+            byte[] buf = new byte[64 * 1024];
+            int n;
+            done = 0;
+            total = size;
+            long lastUi = 0;
             while ((n = in.read(buf)) > 0) {
                 if (cancel) throw new Exception("arrêté");
                 out.write(buf, 0, n);
@@ -189,8 +191,8 @@ final class MapDl {
                 if (now - lastUi > 500) { lastUi = now; progress(); }
             }
         } finally {
-            out.close();
-            in.close();
+            try { if (out != null) out.close(); } catch (Exception ignored) { }
+            try { in.close(); } catch (Exception ignored) { }
         }
     }
 

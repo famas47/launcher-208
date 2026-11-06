@@ -119,12 +119,13 @@ public class LauncherService extends Service {
     /** Toutes les secondes : quelle appli est à l'écran ? (seulement si l'accès est donné) */
     private final Runnable poll = new Runnable() {
         @Override public void run() {
-            if (screenOn) {
+            if (screenOn && P.bubble()) {
                 String fg = foreground();
                 if (fg != null) fgPkg = fg;
-                boolean show = P.bubble() && canOverlay(LauncherService.this) && !fgPkg.isEmpty()
-                        && fgPkg.equals(App.I.apps.carplayPkg());
+                boolean show = !fgPkg.isEmpty() && fgPkg.equals(App.I.apps.carplayPkg()) && canOverlay(LauncherService.this);
                 if (show) bubble.show(); else bubble.hide();
+            } else {
+                bubble.hide();
             }
             h.postDelayed(this, 1000);
         }
@@ -134,7 +135,7 @@ public class LauncherService extends Service {
         try {
             UsageStatsManager um = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
             long now = System.currentTimeMillis();
-            long from = lastQuery == 0 ? now - 3600000L : Math.min(lastQuery, now - 2000);
+            long from = lastQuery == 0 ? now - 86400000L : Math.min(lastQuery, now - 2000); // 1re fois : dernières 24 h
             lastQuery = now;
             UsageEvents ev = um.queryEvents(from, now);
             if (ev == null) return null;

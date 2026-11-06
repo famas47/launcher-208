@@ -53,7 +53,7 @@ final class ConnScreen extends Screen {
         r2.setGravity(0);
         r1.addView(status(0, R.drawable.ic_wifi, Pal.chipB, Pal.chipBf, "Wi-Fi", "Réseau", "Réglages Wi-Fi", Settings.ACTION_WIFI_SETTINGS), U.lpW(1));
         r1.addView(U.gap(a, 12, 1));
-        r1.addView(status(1, R.drawable.ic_bt, 0xFFEDE7FE, 0xFF7C3AED, "Bluetooth", "Appareils", "Réglages Bluetooth", Settings.ACTION_BLUETOOTH_SETTINGS), U.lpW(1));
+        r1.addView(status(1, R.drawable.ic_bt, Pal.night ? 0xFF241C38 : 0xFFEDE7FE, Pal.night ? 0xFFB79CFF : 0xFF7C3AED, "Bluetooth", "Appareils", "Réglages Bluetooth", Settings.ACTION_BLUETOOTH_SETTINGS), U.lpW(1));
         r2.addView(status(2, R.drawable.ic_gps, Pal.chipG, Pal.chipGf, "GPS", "Précision", "Réglages de position", Settings.ACTION_LOCATION_SOURCE_SETTINGS), U.lpW(1));
         r2.addView(U.gap(a, 12, 1));
         r2.addView(status(3, R.drawable.ic_globe, Pal.card2, Pal.text, "Internet", "Réseau", "Se connecter au partage de l'iPhone", Settings.ACTION_WIFI_SETTINGS), U.lpW(1));
@@ -124,9 +124,12 @@ final class ConnScreen extends Screen {
             @Override public void run() {
                 if (action != null) { AppsRepo.openSettings(a, action); return; }
                 // La mise en veille est dans les réglages propres à l'autoradio
-                AppsRepo.AppInfo s = App.I.apps.firstOf(AppsRepo.SETTINGS);
+                AppsRepo.AppInfo s = null;
+                for (AppsRepo.AppInfo x : App.I.apps.list()) {
+                    if (x.cat == AppsRepo.SETTINGS && !x.pkg.equals("com.android.settings")) { s = x; break; }
+                }
                 if (s != null) App.I.apps.launch(a, s);
-                else AppsRepo.openSettings(a, Settings.ACTION_DISPLAY_SETTINGS);
+                else AppsRepo.openSettings(a, Settings.ACTION_SETTINGS);
             }
         });
         return l;

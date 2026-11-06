@@ -26,13 +26,12 @@ final class AppsRepo {
             LINK = 24, NAV = 25, CALC = 26, CLOCK = 27, WEATHER = 28;
 
     static final class AppInfo {
-        final String pkg, cls, label, low;
+        final String pkg, cls, label;
         final int cat;
         Drawable icon; // icône officielle, chargée à la demande
 
         AppInfo(String pkg, String cls, String label, int cat) {
             this.pkg = pkg; this.cls = cls; this.label = label; this.cat = cat;
-            this.low = (label + " " + pkg).toLowerCase(Locale.ROOT);
         }
     }
 
@@ -58,11 +57,12 @@ final class AppsRepo {
                 try {
                     Intent i = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
                     List<ResolveInfo> l = pm.queryIntentActivities(i, 0);
-                    ArrayList<String> homes = homePackages();
+                    ArrayList<String> homes = homeComponents();
                     String me = c.getPackageName();
                     for (ResolveInfo r : l) {
                         String pkg = r.activityInfo.packageName;
-                        if (pkg.equals(me) || homes.contains(pkg)) continue;
+                        // On cache seulement l'écran d'accueil lui-même, pas les autres applis du même paquet
+                        if (pkg.equals(me) || homes.contains(pkg + "/" + r.activityInfo.name)) continue;
                         CharSequence lab = r.loadLabel(pm);
                         String label = lab == null ? pkg : lab.toString().trim();
                         out.add(new AppInfo(pkg, r.activityInfo.name, label, categorize(label, pkg)));
@@ -101,23 +101,33 @@ final class AppsRepo {
         }
     }
 
-    ArrayList<String> homePackages() {
+    /** « paquet/activité » de chaque écran d'accueil (pour ne pas les montrer comme des applis). */
+    ArrayList<String> homeComponents() {
         ArrayList<String> out = new ArrayList<>();
         try {
             Intent i = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
-            for (ResolveInfo r : pm.queryIntentActivities(i, 0)) out.add(r.activityInfo.packageName);
+            for (ResolveInfo r : pm.queryIntentActivities(i, 0)) out.add(r.activityInfo.packageName + "/" + r.activityInfo.name);
         } catch (Exception ignored) { }
         return out;
     }
 
-    /** Écrans d'accueil installés, sauf le nôtre (= « écran d'origine »). */
+    /**
+     * Écrans d'accueil installés, sauf le nôtre (= « écran d'origine »), le plus prioritaire d'abord.
+     * Android cache aussi un « accueil de secours » dans ses Réglages : on l'ignore.
+     */
     List<ResolveInfo> otherHomes() {
         ArrayList<ResolveInfo> out = new ArrayList<>();
         try {
             Intent i = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
             for (ResolveInfo r : pm.queryIntentActivities(i, 0)) {
-                if (!r.activityInfo.packageName.equals(c.getPackageName())) out.add(r);
+                String p = r.activityInfo.packageName, n = r.activityInfo.name;
+                if (p.equals(c.getPackageName()) || n.contains("FallbackHome") || p.equals("com.android.settings")
+                        || p.equals("com.android.provision") || p.contains("setupwizard")) continue;
+                out.add(r);
             }
+            Collections.sort(out, new Comparator<ResolveInfo>() {
+                @Override public int compare(ResolveInfo a, ResolveInfo b) { return b.priority - a.priority; }
+            });
         } catch (Exception ignored) { }
         return out;
     }
@@ -221,7 +231,7 @@ final class AppsRepo {
             default:
                 int[][] pal = {{0xFF4C8DFF, 0xFF2563EB}, {0xFF2DD4BF, 0xFF0D9488}, {0xFFA78BFA, 0xFF7C3AED},
                         {0xFFFFB547, 0xFFF08A1C}, {0xFF8C98A8, 0xFF4B5563}, {0xFF4ADE80, 0xFF16A34A}};
-                return pal[Math.abs(key.hashCode()) % pal.length];
+                return pal[(key.hashCode() & 0x7FFFFFFF) % pal.length];
         }
     }
 

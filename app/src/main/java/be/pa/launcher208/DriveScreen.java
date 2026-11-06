@@ -16,7 +16,7 @@ import org.mapsforge.map.android.view.MapView;
  * S'affiche au-dessus de 10 km/h et revient à l'accueil après l'arrêt (1 min par défaut).
  */
 final class DriveScreen extends Screen {
-    private TextView speed, clock, weather, street, tripKm, tripMin, mapStreet, mapTrip, radioName, volVal;
+    private TextView speed, clock, weather, street, tripKm, tripMin, mapStreet, mapTrip, radioName, radioLabel, volVal, mapMsg;
     private Widgets.Bar volBar;
     private FrameLayout mapBox;
     private MiniMap mini;
@@ -94,7 +94,11 @@ final class DriveScreen extends Screen {
         mapBox.setBackground(U.rr(Pal.night ? 0xFF1B1E24 : 0xFFECEFF2, 22));
         mapBox.setClipToOutline(true);
         U.shadow(mapBox, 6);
+        mapMsg = U.tvMulti(a, "Carte indisponible.\nRéglages → Carte de Belgique", 15, Pal.text2, 500, 2);
+        mapMsg.setGravity(Gravity.CENTER);
+        mapBox.addView(mapMsg, U.flm(U.M, U.WR, Gravity.CENTER, 20, 0, 20, 0));
         mapStreet = pill("", 14, 600);
+        mapStreet.setMaxWidth(U.s(540));
         mapBox.addView(mapStreet, U.flm(U.WR, U.s(36), Gravity.TOP | Gravity.LEFT, 14, 14, 0, 0));
         TextView north = U.tv(a, "N", 15, 0xFFDC2626, 700);
         north.setGravity(Gravity.CENTER);
@@ -158,8 +162,9 @@ final class DriveScreen extends Screen {
         street.setCompoundDrawablesRelative(pin, null, null, null);
         street.setCompoundDrawablePadding(U.s(8));
         U.pad(street, 14, 0, 20, 0);
+        street.setMaxWidth(U.s(600));
         mid.addView(street, U.lpm(U.WR, U.s(46), 0, 22, 0, 0));
-        f.addView(mid, U.flm(U.M, U.WR, Gravity.TOP, 0, 128, 0, 0));
+        f.addView(mid, U.flm(U.M, U.WR, Gravity.CENTER, 0, 70, 0, 172)); // centré entre la barre du haut et les tuiles
 
         LinearLayout tiles = U.row(a);
         tiles.setGravity(0);
@@ -199,7 +204,9 @@ final class DriveScreen extends Screen {
         radioName = U.tv(a, "Radio", 19, Pal.text, 700);
         top.addView(radioName, U.lpm(0, U.WR, 10, 0, 8, 0));
         ((LinearLayout.LayoutParams) radioName.getLayoutParams()).weight = 1;
-        top.addView(U.tv(a, "Radio", 13, Pal.text2, 500));
+        radioLabel = U.tv(a, "Radio", 13, Pal.text2, 500);
+        radioLabel.setVisibility(View.GONE);
+        top.addView(radioLabel);
         U.click(top, 10, new Runnable() {
             @Override public void run() { a.openRole(P.PKG_RADIO, AppsRepo.RADIO, "Radio"); }
         });
@@ -300,6 +307,7 @@ final class DriveScreen extends Screen {
                 mini = null;
             }
         }
+        if (mapMsg != null) mapMsg.setVisibility(mini == null ? View.VISIBLE : View.GONE);
         refresh();
     }
 
@@ -309,7 +317,7 @@ final class DriveScreen extends Screen {
             mini = null;
             if (mapBox != null) {
                 // Enlève la carte et la flèche (on garde les étiquettes)
-                while (mapBox.getChildCount() > 4) mapBox.removeViewAt(0);
+                while (mapBox.getChildCount() > 5) mapBox.removeViewAt(0);
             }
             marker = null;
         }
@@ -331,20 +339,20 @@ final class DriveScreen extends Screen {
         }
         String st = l.street;
         if (mapStreet != null) {
-            mapStreet.setText(st);
+            U.text(mapStreet, st);
             mapStreet.setVisibility(st.isEmpty() ? View.GONE : View.VISIBLE);
         }
         if (street != null) {
-            street.setText(st);
+            U.text(street, st);
             street.setVisibility(st.isEmpty() ? View.INVISIBLE : View.VISIBLE);
         }
         TripStore t = App.I.trips;
         long mins = t.curStart > 0 ? Math.max(0, (Clock.now() - t.curStart) / 60000L) : 0;
         if (tripKm != null) {
-            tripKm.setText(HomeScreen.vu(Fmt.km(t.curKm), " km", 16));
-            tripMin.setText(HomeScreen.vu(String.valueOf(mins), " min", 16));
+            U.text(tripKm, HomeScreen.vu(Fmt.km(t.curKm), " km", 16));
+            U.text(tripMin, HomeScreen.vu(String.valueOf(mins), " min", 16));
         }
-        if (mapTrip != null) mapTrip.setText(Fmt.km(t.curKm) + " km   ·   " + Fmt.dur(mins));
+        if (mapTrip != null) U.text(mapTrip, Fmt.km(t.curKm) + " km   ·   " + Fmt.dur(mins));
         if (radioName != null && radioPoll-- <= 0) {
             radioPoll = 3;
             updateRadio();
@@ -355,7 +363,8 @@ final class DriveScreen extends Screen {
         String pkg = App.I.apps.radioPkg();
         MediaController mc = App.I.media.controller(pkg);
         String title = mc == null ? "" : Media.title(mc);
-        radioName.setText(title.isEmpty() ? "Radio" : title);
+        U.text(radioName, title.isEmpty() ? "Radio" : title);
+        radioLabel.setVisibility(title.isEmpty() ? View.GONE : View.VISIBLE);
         boolean playing = mc == null || Media.isPlaying(mc);
         playIcon.setImageDrawable(U.dr(a, playing ? R.drawable.ic_pause : R.drawable.ic_play, Pal.WHITE));
     }

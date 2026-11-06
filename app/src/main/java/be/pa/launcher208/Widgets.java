@@ -227,7 +227,7 @@ final class Widgets {
 
         @Override public void setColorFilter(ColorFilter cf) { p.setColorFilter(cf); }
 
-        @Override public int getOpacity() { return PixelFormat.OPAQUE; }
+        @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
     }
 
     /** Graphique en barres des 7 derniers jours (Trajets). */
