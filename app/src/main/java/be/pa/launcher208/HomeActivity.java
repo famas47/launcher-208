@@ -288,7 +288,16 @@ public class HomeActivity extends Activity {
         h.post(tick);
         if (screens[screen] != null) screens[screen].onShow();
         if (drive != null && driving) drive.onShow();
-        if (firstFrameDone) LauncherService.start(this);
+        if (firstFrameDone) {
+            LauncherService.start(this);
+            CarView.preload(this); // ne fait rien si les vues sont déjà en mémoire
+        }
+    }
+
+    @Override public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        // Envoyé seulement quand l'autoradio manque vraiment de mémoire et que l'accueil est caché.
+        if (level >= TRIM_MEMORY_BACKGROUND && !resumed) CarView.trim();
     }
 
     @Override protected void onPause() {

@@ -1,6 +1,7 @@
 # Launcher 208
 
-Écran d'accueil (launcher) pour l'autoradio Android de ma Peugeot 208 : style CarPlay / Tesla, ma voiture en 3D,
+Écran d'accueil (launcher) pour l'autoradio Android de ma Peugeot 208 : style CarPlay / Tesla, ma voiture en 3D
+qui tourne à 360° au doigt (72 vues, `app/src/main/assets/car/v000…v355.webp`),
 CarPlay (S-Play) en un geste, mode conduite avec minimap hors ligne, trajets, entretien, bulle de volume sur CarPlay.
 
 ## Comment ça marche
