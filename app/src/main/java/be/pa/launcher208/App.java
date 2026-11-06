@@ -1,0 +1,66 @@
+package be.pa.launcher208;
+
+import android.app.Application;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
+import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Process;
+import android.os.SystemClock;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/** Point de départ : objets partagés, créés une seule fois et rapidement. */
+public class App extends Application {
+    static App I;
+    static long processStart;     // démarrage du processus (pour mesurer le démarrage)
+    static long firstFrameMs = -1; // temps jusqu'au premier écran affiché
+
+    final Handler main = new Handler(Looper.getMainLooper());
+    final ExecutorService bg = Executors.newSingleThreadExecutor();
+
+    TripStore trips;
+    LocationTracker loc;
+    Weather weather;
+    AppsRepo apps;
+    Volume vol;
+    Media media;
+    Doors doors;
+    Night night;
+    MapDl mapdl;
+    Updater upd;
+    volatile float simSpeed = -1; // mode test : vitesse simulée (-1 = non)
+
+    @Override public void onCreate() {
+        super.onCreate();
+        I = this;
+        processStart = Build.VERSION.SDK_INT >= 24 ? Process.getStartUptimeMillis() : SystemClock.uptimeMillis();
+        P.init(this);
+        U.init(this);
+        trips = new TripStore(this);
+        loc = new LocationTracker(this, trips);
+        weather = new Weather();
+        apps = new AppsRepo(this);
+        vol = new Volume(this);
+        media = new Media(this);
+        doors = new Doors();
+        night = new Night(getContentResolver());
+        mapdl = new MapDl();
+        upd = new Updater();
+    }
+
+    /** Vitesse utilisée par l'écran (GPS, ou simulée en mode test). */
+    float speed() {
+        float s = simSpeed;
+        return s >= 0 ? s : loc.speedKmh;
+    }
+
+    /** Enregistre un récepteur d'annonces, compatible avec toutes les versions d'Android. */
+    static void reg(Context c, BroadcastReceiver r, IntentFilter f) {
+        if (Build.VERSION.SDK_INT >= 33) c.registerReceiver(r, f, Context.RECEIVER_EXPORTED);
+        else c.registerReceiver(r, f);
+    }
+}

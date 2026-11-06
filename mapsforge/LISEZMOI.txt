@@ -1,0 +1,2 @@
+Moteur de carte Mapsforge 0.31.0 (https://github.com/mapsforge/mapsforge), copié ici sans modification.
+Licence : GNU LGPL v3 (voir COPYING et COPYING.LESSER). Il sert à dessiner la minimap hors ligne.

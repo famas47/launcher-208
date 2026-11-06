@@ -1,0 +1,63 @@
+name: Fabriquer le launcher
+
+# Se lance tout seul à chaque changement du code, ou à la main (onglet Actions → Run workflow).
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fabrication
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v7.0.1
+
+      - name: Installer Java 17
+        uses: actions/setup-java@v6.2.0
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Installer Gradle
+        uses: gradle/actions/setup-gradle@v6.4.1
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Préparer la clé de signature
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+        run: |
+          if [ -n "$SIGNING_KEY" ]; then
+            echo "$SIGNING_KEY" | base64 -d > "$RUNNER_TEMP/launcher208.jks"
+            echo "KEYSTORE_FILE=$RUNNER_TEMP/launcher208.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Pas de clé SIGNING_KEY : l'APK marche, mais les mises à jour ne pourront pas s'installer par-dessus."
+          fi
+
+      - name: Fabriquer l'APK
+        env:
+          KEYSTORE_PASSWORD: launcher208-pa
+          KEY_ALIAS: launcher208
+          KEY_PASSWORD: launcher208-pa
+        run: gradle --no-daemon --stacktrace assembleRelease
+
+      - name: Nommer l'APK
+        run: cp app/build/outputs/apk/release/app-release.apk "Launcher208-v${{ github.run_number }}.apk"
+
+      - name: Publier la version
+        uses: softprops/action-gh-release@v3.0.4
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Launcher 208 – version ${{ github.run_number }}
+          body: APK à installer sur l'autoradio (ou mise à jour depuis Réglages → Mise à jour).
+          files: Launcher208-v${{ github.run_number }}.apk
+          make_latest: true

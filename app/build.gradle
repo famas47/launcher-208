@@ -1,0 +1,73 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Numéro de version = numéro de fabrication GitHub (augmente tout seul à chaque fabrication)
+def runNumber = (System.getenv('GITHUB_RUN_NUMBER') ?: '1') as int
+def ghRepo = System.getenv('GITHUB_REPOSITORY') ?: ''
+def keystore = System.getenv('KEYSTORE_FILE')
+
+android {
+    namespace = 'be.pa.launcher208'
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = 'be.pa.launcher208'
+        minSdk = 23
+        targetSdk = 34
+        versionCode = runNumber
+        versionName = "1." + runNumber
+        buildConfigField 'String', 'GH_REPO', '"' + ghRepo + '"'
+        buildConfigField 'long', 'BUILD_TIME', System.currentTimeMillis() + 'L'
+        // Autoradio en 32 bits : pas de code natif, tout est en Java (fonctionne partout).
+    }
+
+    signingConfigs {
+        release {
+            if (keystore) {
+                storeFile = file(keystore)
+                storeType = 'pkcs12'
+                storePassword = System.getenv('KEYSTORE_PASSWORD')
+                keyAlias = System.getenv('KEY_ALIAS')
+                keyPassword = System.getenv('KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled = false
+            signingConfig = keystore ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    sourceSets {
+        main {
+            // Moteur de carte Mapsforge (LGPL), inclus en sources
+            java.srcDirs += [
+                '../mapsforge/core/java',
+                '../mapsforge/map/java',
+                '../mapsforge/map-reader/java',
+                '../mapsforge/map-android/java'
+            ]
+        }
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
+}
+
+dependencies {
+    implementation 'com.caverock:androidsvg:1.4'
+}
