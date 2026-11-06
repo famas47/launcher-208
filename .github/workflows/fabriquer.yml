@@ -40,7 +40,7 @@ jobs:
             echo "$SIGNING_KEY" | base64 -d > "$RUNNER_TEMP/launcher208.jks"
             echo "KEYSTORE_FILE=$RUNNER_TEMP/launcher208.jks" >> "$GITHUB_ENV"
           else
-            echo "::warning::Pas de clé SIGNING_KEY : l'APK marche, mais les mises à jour ne pourront pas s'installer par-dessus."
+            echo "::warning::Pas encore de clé SIGNING_KEY : fabrication de contrôle seulement, aucune version publiée."
           fi
 
       - name: Fabriquer l'APK
@@ -51,9 +51,11 @@ jobs:
         run: gradle --no-daemon --stacktrace assembleRelease
 
       - name: Nommer l'APK
+        if: ${{ env.KEYSTORE_FILE != '' }}
         run: cp app/build/outputs/apk/release/app-release.apk "Launcher208-v${{ github.run_number }}.apk"
 
       - name: Publier la version
+        if: ${{ env.KEYSTORE_FILE != '' }}
         uses: softprops/action-gh-release@v3.0.4
         with:
           tag_name: v${{ github.run_number }}
