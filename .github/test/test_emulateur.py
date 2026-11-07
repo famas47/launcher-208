@@ -343,6 +343,11 @@ for l_ in rues[-6:]:
 memory('conduite avec la carte')
 hook(vitesse=-1)
 shot('14-retour-accueil', 2)
+hook(onglet=1)
+shot('14b-trajets-apres-conduite', 1.5)
+hook(onglet=2)
+shot('14c-entretien', 1.5)
+hook(onglet=0)
 
 # ---------- Nuit ----------
 log('\n--- Mode nuit ---')

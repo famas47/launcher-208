@@ -33,6 +33,8 @@ final class TripsPanel {
             c.addView(small[i], U.lpm(U.WR, U.WR, 0, 6, 0, 0));
             if (i > 0) stats.addView(U.gap(a, 12, 1));
             stats.addView(c, U.lpW(1));
+            // hauteur selon le contenu : sinon la rangée (hauteur « selon le contenu ») s'écrase à 1 pixel
+            ((LinearLayout.LayoutParams) c.getLayoutParams()).height = U.WR;
         }
         root.addView(stats, U.lp(U.M, U.WR));
         root.addView(U.gap(a, -1, 12));

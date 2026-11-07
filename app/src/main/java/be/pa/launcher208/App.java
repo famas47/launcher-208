@@ -18,6 +18,7 @@ public class App extends Application {
     static App I;
     static long processStart;     // démarrage du processus (pour mesurer le démarrage)
     static long firstFrameMs = -1; // temps jusqu'au premier écran affiché
+    static long appReady;          // fin de la préparation de l'appli (uptime)
 
     final Handler main = new Handler(Looper.getMainLooper());
     final ExecutorService bg = Executors.newSingleThreadExecutor();
@@ -50,6 +51,7 @@ public class App extends Application {
         night = new Night(getContentResolver());
         mapdl = new MapDl();
         upd = new Updater();
+        appReady = SystemClock.uptimeMillis();
         mark("application prête");
     }
 

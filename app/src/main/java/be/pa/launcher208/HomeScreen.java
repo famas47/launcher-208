@@ -78,6 +78,8 @@ final class HomeScreen extends Screen {
         subtitle = U.tv(a, "5 portes · prête à rouler", 14, Pal.text2, 400);
         titles.addView(subtitle, U.lpm(U.WR, U.WR, 0, 4, 0, 0));
         head.addView(titles, U.lpW(1));
+        // hauteur selon le contenu : sinon la rangée prend la hauteur des onglets et coupe le sous-titre en deux
+        ((LinearLayout.LayoutParams) titles.getLayoutParams()).height = U.WR;
         segBox = Widgets.seg(a, new String[]{"Voiture", "Trajets", "Entretien"}, 0, new Widgets.IntCb() {
             @Override public void on(int v) { tab(v); }
         });
@@ -178,6 +180,7 @@ final class HomeScreen extends Screen {
         tab = t;
         if (segTabs != null) Widgets.segSelect(segTabs, t);
         showTab();
+        if (subtitle != null && App.I.doors.mask() == 0) U.text(subtitle, tabSubtitle());
         refresh();
     }
 
@@ -411,10 +414,15 @@ final class HomeScreen extends Screen {
             hint.setText("La voiture a tourné toute seule pour montrer l'ouverture");
             if (tab != 0) tab(0);
         } else {
-            subtitle.setText("5 portes · prête à rouler");
+            subtitle.setText(tabSubtitle());
             subtitle.setTextColor(Pal.text2);
             hint.setText("Glisse le doigt pour la faire tourner");
         }
+    }
+
+    /** Sous-titre sous « Peugeot 208 », selon l'onglet (comme sur les maquettes). */
+    private String tabSubtitle() {
+        return tab == 1 ? "Distances mesurées par le GPS" : tab == 2 ? "Rappels que tu renseignes toi-même" : "5 portes · prête à rouler";
     }
 
     // ================= Où est garée la voiture =================

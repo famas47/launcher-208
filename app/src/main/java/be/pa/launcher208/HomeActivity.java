@@ -40,9 +40,11 @@ public class HomeActivity extends Activity {
     private int lastMinute = -1;
     private boolean firstFrameDone;
     private static java.lang.ref.WeakReference<HomeActivity> live;
+    private long createdAt;
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
+        createdAt = SystemClock.uptimeMillis();
         App.mark("activité créée");
         // Une seule page d'accueil à la fois : si Android en crée une deuxième (par exemple ouverte une fois
         // depuis la liste des applis, puis bouton accueil), l'ancienne est fermée pour ne pas garder deux écrans en mémoire.
@@ -64,7 +66,12 @@ public class HomeActivity extends Activity {
                 root.getViewTreeObserver().removeOnPreDrawListener(this);
                 if (!firstFrameDone) {
                     firstFrameDone = true;
-                    if (App.firstFrameMs < 0) App.firstFrameMs = SystemClock.uptimeMillis() - App.processStart;
+                    if (App.firstFrameMs < 0) {
+                        // Si Android avait déjà lancé l'appli en arrière-plan (pour un de ses services) bien avant
+                        // d'afficher l'accueil, on mesure depuis l'ouverture de l'accueil et non depuis ce lancement-là.
+                        long from = createdAt - App.appReady > 300 ? createdAt : App.processStart;
+                        App.firstFrameMs = SystemClock.uptimeMillis() - from;
+                    }
                     App.mark("première image prête à dessiner");
                     h.post(afterFirstFrame);
                 }
