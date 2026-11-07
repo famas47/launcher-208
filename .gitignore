@@ -7,3 +7,7 @@ local.properties
 .idea/
 *.iml
 .DS_Store
+
+# Fichiers temporaires de Python
+__pycache__/
+*.pyc

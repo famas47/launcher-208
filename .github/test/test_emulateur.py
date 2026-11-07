@@ -203,6 +203,8 @@ for op in ('SYSTEM_ALERT_WINDOW', 'GET_USAGE_STATS'):
 adb('shell cmd notification allow_listener %s/%s.NotifListener' % (PKG, PKG))
 log('  écran d\'accueil par défaut :', last(adb('shell cmd package set-home-activity ' + ACT)))
 adb('shell settings put system screen_off_timeout 1800000')
+# Le message d'Android « Viewing full screen / plein écran » (affiché une seule fois) cachait le haut des captures.
+adb('shell settings put secure immersive_mode_confirmations confirmed')
 adb('shell svc power stayon true')
 adb('emu geo fix 3.9517 50.4542')  # Grand-Place de Mons
 
@@ -332,6 +334,7 @@ if len(dm) >= 2:
     for what, ms in dm[-4:]:
         log('    %-35s +%d ms' % (what, int(ms) - t0))
 shot('13-conduite', 0.5)
+log('  (sur la capture 13, la rue affichée doit être la rue d\'Havré, celle que suit la voiture)')
 memory('conduite avec la carte')
 hook(vitesse=-1)
 shot('14-retour-accueil', 2)

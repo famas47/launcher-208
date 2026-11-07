@@ -161,12 +161,21 @@ public class TileRendererLayer extends TileLayer<RendererJob> implements Observe
 
     public void setXmlRenderTheme(XmlRenderTheme xmlRenderTheme) {
         this.xmlRenderTheme = xmlRenderTheme;
-        compileRenderTheme();
+        // Launcher 208 : si la couche n'est pas encore ajoutée à la carte, le thème sera lu à ce moment-là
+        // (setDisplayModel) ; avant, il était lu deux fois de suite, la première pour rien.
+        if (this.displayModel != null) {
+            compileRenderTheme();
+        }
     }
 
     protected void compileRenderTheme() {
+        if (this.xmlRenderTheme == null) {
+            return;
+        }
         this.renderThemeFuture = new RenderThemeFuture(this.graphicFactory, this.xmlRenderTheme, this.displayModel);
-        new Thread(this.renderThemeFuture).start();
+        Thread t = new Thread(this.renderThemeFuture, "carte-theme");
+        t.setPriority(Thread.NORM_PRIORITY - 1); // Launcher 208 : priorité basse
+        t.start();
     }
 
     public RenderThemeFuture getRenderThemeFuture() {

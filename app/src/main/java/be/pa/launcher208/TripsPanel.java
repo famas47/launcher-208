@@ -102,7 +102,7 @@ final class TripsPanel {
             ((LinearLayout.LayoutParams) c.getLayoutParams()).weight = 1;
             LinearLayout v = U.col(a);
             v.setGravity(Gravity.END);
-            v.addView(U.tv(a, Fmt.km(t.km) + " km", 14, Pal.text, 600));
+            v.addView(U.tv(a, Fmt.km(t.km) + " km", 14, Pal.text, 600), U.lp(U.WR, U.WR)); // largeur explicite (sinon « 12,… »)
             v.addView(U.tv(a, Fmt.dur(t.minutes()), 12, Pal.text2, 400), U.lpm(U.WR, U.WR, 0, 2, 0, 0));
             r.addView(v);
             list.addView(r);

@@ -63,3 +63,12 @@ jobs:
           body: APK à installer sur l'autoradio (ou mise à jour depuis Réglages → Mise à jour).
           files: Launcher208-v${{ github.run_number }}.apk
           make_latest: true
+
+      - name: Supprimer les brouillons de vérification (rapports de test, inutiles une fois la version publiée)
+        if: ${{ env.KEYSTORE_FILE != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/releases?per_page=100" \
+            --jq '.[] | select(.draft and (.tag_name | startswith("verification-"))) | .id' |
+          while read -r id; do gh api -X DELETE "repos/${{ github.repository }}/releases/$id" && echo "brouillon $id supprimé"; done || true

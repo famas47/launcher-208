@@ -1,2 +1,9 @@
-Moteur de carte Mapsforge 0.31.0 (https://github.com/mapsforge/mapsforge), copié ici sans modification.
+Moteur de carte Mapsforge 0.31.0 (https://github.com/mapsforge/mapsforge).
 Licence : GNU LGPL v3 (voir COPYING et COPYING.LESSER). Il sert à dessiner la minimap hors ligne.
+
+Modifications faites pour Launcher 208 (repérées par « Launcher 208 » dans le code) :
+- map/.../layer/renderer/MapWorkerPool.java : les fils qui dessinent les tuiles tournent en priorité basse,
+  pour que l'écran reste fluide pendant que la carte se dessine.
+- map/.../layer/renderer/TileRendererLayer.java : le thème de la carte n'est lu qu'une seule fois (au lieu de
+  deux fois de suite au démarrage de la carte), dans un fil en priorité basse.
+Le reste est identique à la version d'origine.

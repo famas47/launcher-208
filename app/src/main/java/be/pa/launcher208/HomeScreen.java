@@ -199,7 +199,7 @@ final class HomeScreen extends Screen {
         LinearLayout top = U.row(a);
         top.addView(U.box(a, 52, U.rr(Pal.WHITE, 16), R.drawable.ic_carplay, 30, Pal.BLUE));
         LinearLayout tt = U.col(a);
-        tt.addView(U.tv(a, "CarPlay", 26, Pal.WHITE, 700));
+        tt.addView(U.tv(a, "CarPlay", 26, Pal.WHITE, 700), U.lp(U.WR, U.WR)); // largeur explicite (sinon « CarP… »)
         LinearLayout st = U.row(a);
         cpDot = new View(a);
         cpDot.setBackground(U.oval(0xFF86EFAC));

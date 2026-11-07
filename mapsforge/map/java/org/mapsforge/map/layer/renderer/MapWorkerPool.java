@@ -84,7 +84,16 @@ public class MapWorkerPool implements Runnable {
         }
         this.inShutdown = false;
         this.self = Executors.newSingleThreadExecutor();
-        this.workers = Executors.newFixedThreadPool(Parameters.NUMBER_OF_THREADS);
+        // Launcher 208 : fils en priorité basse, pour que l'écran (fil principal) passe toujours avant la carte.
+        this.workers = Executors.newFixedThreadPool(Parameters.NUMBER_OF_THREADS, new java.util.concurrent.ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread t = new Thread(r, "carte-dessin");
+                t.setPriority(Thread.NORM_PRIORITY - 1);
+                t.setDaemon(true);
+                return t;
+            }
+        });
         this.self.execute(this);
         this.isRunning = true;
     }

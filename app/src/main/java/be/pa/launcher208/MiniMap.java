@@ -8,6 +8,7 @@ import org.mapsforge.core.model.LatLong;
 import org.mapsforge.core.model.Tag;
 import org.mapsforge.core.model.Tile;
 import org.mapsforge.core.util.MercatorProjection;
+import org.mapsforge.core.util.Parameters;
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory;
 import org.mapsforge.map.android.rendertheme.AssetsRenderTheme;
 import org.mapsforge.map.android.util.AndroidUtil;
@@ -64,6 +65,9 @@ final class MiniMap {
         try {
             if (!graphicsReady) {
                 AndroidGraphicFactory.createInstance(App.I);
+                // Par défaut, Mapsforge dessine avec un fil par cœur du processeur + 1 (9 sur un autoradio à 8 cœurs) :
+                // 2 suffisent pour une minimap, et l'écran garde tout le processeur dont il a besoin.
+                Parameters.NUMBER_OF_THREADS = 2;
                 graphicsReady = true;
             }
             mv = new MapView(c);
@@ -120,6 +124,19 @@ final class MiniMap {
     private void lookupStreet(final double lat, final double lon) {
         if (looking) return;
         if (Math.abs(lat - lastLookLat) < 0.00022 && Math.abs(lon - lastLookLon) < 0.00035) return;
+        // Sens de la marche : depuis la recherche précédente (25 m à 300 m plus tôt), sinon le cap du GPS.
+        double ux = 0, uy = 0;
+        if (lastLookLat != 0 || lastLookLon != 0) {
+            double dx = (lon - lastLookLon) * 111320.0 * Math.cos(Math.toRadians(lat)), dy = (lat - lastLookLat) * 110540.0;
+            double n = Math.sqrt(dx * dx + dy * dy);
+            if (n > 10 && n < 300) { ux = dx / n; uy = dy / n; }
+        }
+        if (ux == 0 && uy == 0 && App.I.loc.speedKmh > 8) {
+            double b = Math.toRadians(App.I.loc.bearing);
+            ux = Math.sin(b);
+            uy = Math.cos(b);
+        }
+        final double dirX = ux, dirY = uy;
         lastLookLat = lat;
         lastLookLon = lon;
         looking = true;
@@ -135,7 +152,7 @@ final class MiniMap {
                     Tile a = new Tile(Math.max(0, tx - 1), Math.max(0, ty - 1), zoom, 256);
                     Tile b = new Tile(tx + 1, ty + 1, zoom, 256);
                     MapReadResult r = lookupFile.readNamedItems(a, b);
-                    double bestD = 45; // mètres
+                    double bestS = Double.MAX_VALUE;
                     if (r != null && r.ways != null) {
                         for (Way w : r.ways) {
                             String name = null;
@@ -146,8 +163,9 @@ final class MiniMap {
                             }
                             if (!road || name == null || name.isEmpty() || w.latLongs == null) continue;
                             for (LatLong[] seg : w.latLongs) {
-                                double d = distance(lat, lon, seg);
-                                if (d < bestD) { bestD = d; best = name; }
+                                if (distance(lat, lon, seg) > 45) continue; // rue trop loin (mètres)
+                                double sc = score(lat, lon, seg, dirX, dirY);
+                                if (sc < bestS) { bestS = sc; best = name; }
                             }
                         }
                     }
@@ -164,6 +182,33 @@ final class MiniMap {
 
     private static boolean isPath(String v) {
         return "footway".equals(v) || "path".equals(v) || "steps".equals(v) || "cycleway".equals(v) || "bridleway".equals(v);
+    }
+
+    /**
+     * Note d'une rue (plus petite = meilleure) : distance en mètres, plus une pénalité jusqu'à 25 m si la rue
+     * part en travers du sens de la marche. Ainsi, à un carrefour, c'est la rue qu'on suit qui gagne,
+     * pas la rue qui la croise. Sans sens connu (ux = uy = 0), c'est simplement la distance.
+     */
+    static double score(double lat, double lon, LatLong[] line, double ux, double uy) {
+        boolean dir = ux != 0 || uy != 0;
+        double kx = 111320.0 * Math.cos(Math.toRadians(lat)), ky = 110540.0;
+        double best = Double.MAX_VALUE;
+        for (int i = 0; i + 1 < line.length; i++) {
+            double ax = (line[i].longitude - lon) * kx, ay = (line[i].latitude - lat) * ky;
+            double bx = (line[i + 1].longitude - lon) * kx, by = (line[i + 1].latitude - lat) * ky;
+            double dx = bx - ax, dy = by - ay;
+            double l2 = dx * dx + dy * dy;
+            double t = l2 == 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2));
+            double px = ax + t * dx, py = ay + t * dy;
+            double d = Math.sqrt(px * px + py * py);
+            if (dir) {
+                double align = l2 == 0 ? 0 : Math.abs(dx * ux + dy * uy) / Math.sqrt(l2); // 1 = même sens, 0 = en travers
+                d += 25 * (1 - align);
+            }
+            best = Math.min(best, d);
+        }
+        if (line.length == 1) best = distance(lat, lon, line) + (dir ? 25 : 0);
+        return best;
     }
 
     /** Distance (m) d'un point à une ligne, approximation plane suffisante à cette échelle. */

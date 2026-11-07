@@ -122,6 +122,14 @@ jobs:
       - name: Tout mettre dans un seul fichier
         run: cd rapports && zip -qr ../rapport-verification-${{ github.run_number }}.zip . && ls -l ../rapport-verification-*.zip
 
+      - name: Supprimer les anciens brouillons de vérification
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/releases?per_page=100" \
+            --jq '.[] | select(.draft and (.tag_name | startswith("verification-"))) | .id' |
+          while read -r id; do gh api -X DELETE "repos/${{ github.repository }}/releases/$id" && echo "brouillon $id supprimé"; done || true
+
       - name: Brouillon privé avec le rapport
         uses: softprops/action-gh-release@v3.0.4
         with:

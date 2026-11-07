@@ -247,7 +247,9 @@ final class DriveScreen extends Screen {
         LinearLayout h = U.row(a);
         h.addView(U.box(a, 64, U.rr(Pal.WHITE, 20), R.drawable.ic_carplay, 32, Pal.BLUE));
         LinearLayout tt = U.col(a);
-        tt.addView(U.tv(a, "CarPlay", 32, Pal.WHITE, 700));
+        // largeur explicite : dans une colonne « selon le contenu », un texte ajouté sans dimensions
+        // serait réduit à la largeur de la ligne du dessous (« CarP… »)
+        tt.addView(U.tv(a, "CarPlay", 32, Pal.WHITE, 700), U.lp(U.WR, U.WR));
         String pkg = App.I.apps.carplayPkg();
         tt.addView(U.tv(a, pkg.isEmpty() ? "Appli à choisir" : App.I.apps.label(pkg), 16, Pal.WHITE, 400), U.lpm(U.WR, U.WR, 0, 2, 0, 0));
         h.addView(tt, U.lpm(U.WR, U.WR, 16, 0, 0, 0));
