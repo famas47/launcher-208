@@ -374,6 +374,20 @@ public class HomeActivity extends Activity {
             App.I.simSpeed = i.getIntExtra("test_vitesse", -1);
             if (App.I.simSpeed < 0) exitDrive();
         }
+        if (i.hasExtra("test_trajets")) {
+            // trois trajets d'exemple aujourd'hui et quelques-uns les jours d'avant (test de l'affichage)
+            long day = 86400000L, now = Clock.now(), today = now - Fmt.minuteOfDay(now) * 60000L;
+            float[][] ex = {{7 * 60 + 24, 34, 14.2f, 92}, {12 * 60 + 10, 11, 4.1f, 70}, {17 * 60 + 45, 7, 4.7f, 50}};
+            for (int d = 6; d >= 0; d--) {
+                for (int k = 0; k < (d == 0 ? 3 : 1 + d % 3); k++) {
+                    long st = today - d * day + (long) ex[k][0] * 60000L;
+                    if (st + (long) ex[k][1] * 60000L > now) continue;
+                    App.I.trips.add(new TripStore.Trip(st, st + (long) ex[k][1] * 60000L, ex[k][2] * (1 + d % 2), ex[k][3]));
+                }
+            }
+            showScreen(S_HOME);
+            home().tab(1);
+        }
         if (i.hasExtra("test_info")) root.post(new Runnable() {
             @Override public void run() { testLog(root); }
         });
