@@ -325,6 +325,12 @@ for k in range(20):                        # environ 14 m par seconde vers l'est
     adb('emu geo fix %.6f %.6f' % (lon, lat))
     time.sleep(1)
 gfx('conduite avec minimap')
+dm = re.findall(r'temps (conduite : .+?) (\d+) ms', adb('logcat -d -s Test208:I'))
+if len(dm) >= 2:
+    log('  passage en mode conduite (fil principal) :')
+    t0 = int(dm[-4][1]) if len(dm) >= 4 else int(dm[0][1])
+    for what, ms in dm[-4:]:
+        log('    %-35s +%d ms' % (what, int(ms) - t0))
 shot('13-conduite', 0.5)
 memory('conduite avec la carte')
 hook(vitesse=-1)

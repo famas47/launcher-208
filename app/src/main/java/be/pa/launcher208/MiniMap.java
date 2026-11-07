@@ -14,6 +14,7 @@ import org.mapsforge.map.android.util.AndroidUtil;
 import org.mapsforge.map.android.view.MapView;
 import org.mapsforge.map.datastore.MapReadResult;
 import org.mapsforge.map.datastore.Way;
+import org.mapsforge.map.layer.cache.InMemoryTileCache;
 import org.mapsforge.map.layer.cache.TileCache;
 import org.mapsforge.map.layer.renderer.TileRendererLayer;
 import org.mapsforge.map.reader.MapFile;
@@ -70,8 +71,10 @@ final class MiniMap {
             mv.getMapScaleBar().setVisible(false);
             mv.setBuiltInZoomControls(false);
             mv.getModel().displayModel.setBackgroundColor(Pal.night ? 0xFF1B1E24 : 0xFFECEFF2);
-            cache = AndroidUtil.createTileCache(c, "minimap", mv.getModel().displayModel.getTileSize(), 1f,
-                    mv.getModel().frameBufferModel.getOverdrawFactor(), false);
+            // Tuiles gardées en mémoire seulement : rien n'est écrit sur la mémoire de l'autoradio
+            // (moins de travail pendant la conduite, et rien à effacer en sortant du mode conduite).
+            cache = new InMemoryTileCache(AndroidUtil.getMinimumCacheSize(c, mv.getModel().displayModel.getTileSize(),
+                    mv.getModel().frameBufferModel.getOverdrawFactor(), 1f));
             mapFile = new MapFile(file(c), "fr");
             TileRendererLayer layer = new TileRendererLayer(cache, mapFile, mv.getModel().mapViewPosition,
                     AndroidGraphicFactory.INSTANCE);

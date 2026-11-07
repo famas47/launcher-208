@@ -39,10 +39,17 @@ public class HomeActivity extends Activity {
     private long stopSince;
     private int lastMinute = -1;
     private boolean firstFrameDone;
+    private static java.lang.ref.WeakReference<HomeActivity> live;
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
         App.mark("activité créée");
+        // Une seule page d'accueil à la fois : si Android en crée une deuxième (par exemple ouverte une fois
+        // depuis la liste des applis, puis bouton accueil), l'ancienne est fermée pour ne pas garder deux écrans en mémoire.
+        HomeActivity old = live != null ? live.get() : null;
+        // (seulement une autre page encore vivante dans une autre tâche : jamais celle qu'Android est en train de reconstruire)
+        if (old != null && old != this && !old.isFinishing() && !old.isDestroyed() && old.getTaskId() != getTaskId()) old.finish();
+        live = new java.lang.ref.WeakReference<>(this);
         Window w = getWindow();
         w.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
         nightNow = App.I.night.isNight(Clock.now());
@@ -209,8 +216,10 @@ public class HomeActivity extends Activity {
         if (driving) return;
         driving = true;
         stopSince = 0;
+        App.mark("conduite : début");
         if (drive == null) drive = new DriveScreen(this);
         View v = drive.view();
+        App.mark("conduite : écran construit");
         if (v.getParent() == null) root.addView(v, new FrameLayout.LayoutParams(U.M, U.M));
         mainRow.setVisibility(View.GONE);
         drive.onShow();

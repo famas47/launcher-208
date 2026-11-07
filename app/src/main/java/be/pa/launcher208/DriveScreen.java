@@ -4,6 +4,7 @@ import android.media.session.MediaController;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -22,7 +23,7 @@ final class DriveScreen extends Screen {
     private MiniMap mini;
     private Widgets.Marker marker;
     private ImageView playIcon;
-    private boolean withMap;
+    private boolean withMap, shown, mapPending;
     private int lastSpeed = -1, radioPoll;
 
     DriveScreen(HomeActivity a) { super(a); }
@@ -294,7 +295,29 @@ final class DriveScreen extends Screen {
 
     // ---------- Vie de l'écran ----------
     @Override void onShow() {
-        if (withMap && mapBox != null && mini == null) {
+        shown = true;
+        if (withMap && mapBox != null && mini == null && !mapPending) {
+            // L'écran de conduite s'affiche tout de suite ; la carte est préparée juste après sa première image.
+            mapPending = true;
+            final View v = mapBox;
+            v.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+                @Override public boolean onPreDraw() {
+                    v.getViewTreeObserver().removeOnPreDrawListener(this);
+                    v.post(createMap);
+                    return true;
+                }
+            });
+        }
+        if (mapMsg != null) mapMsg.setVisibility(withMap ? View.GONE : View.VISIBLE);
+        refresh();
+    }
+
+    private final Runnable createMap = new Runnable() {
+        @Override public void run() {
+            if (!mapPending) return;
+            mapPending = false;
+            if (!shown || mini != null || mapBox == null) return;
+            App.mark("conduite : création de la carte");
             mini = new MiniMap();
             MapView mv = mini.create(a);
             if (mv != null) {
@@ -303,15 +326,20 @@ final class DriveScreen extends Screen {
                 mapBox.addView(fr, 0, new FrameLayout.LayoutParams(U.M, U.M));
                 marker = new Widgets.Marker(a);
                 mapBox.addView(marker, 1, U.flm(U.s(84), U.s(84), Gravity.CENTER, 0, 0, 0, 0));
+                LocationTracker l = App.I.loc;
+                mini.follow(l.lat, l.lon, App.I.speed());
             } else {
                 mini = null;
             }
+            if (mapMsg != null) mapMsg.setVisibility(mini == null ? View.VISIBLE : View.GONE);
+            App.mark("conduite : carte en place");
         }
-        if (mapMsg != null) mapMsg.setVisibility(mini == null ? View.VISIBLE : View.GONE);
-        refresh();
-    }
+    };
 
     @Override void onHide() {
+        shown = false;
+        mapPending = false;
+        if (mapBox != null) mapBox.removeCallbacks(createMap);
         if (mini != null) {
             mini.destroy();
             mini = null;
