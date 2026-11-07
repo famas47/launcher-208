@@ -50,6 +50,14 @@ public class App extends Application {
         night = new Night(getContentResolver());
         mapdl = new MapDl();
         upd = new Updater();
+        mark("application prête");
+    }
+
+    /** Chronométrage du démarrage, seulement dans l'APK de test (rien dans l'APK de la voiture). */
+    static void mark(String what) {
+        if (BuildConfig.TEST_HOOKS) {
+            android.util.Log.i("Test208", "temps " + what + " " + (SystemClock.uptimeMillis() - processStart) + " ms");
+        }
     }
 
     /** Vitesse utilisée par l'écran (GPS, ou simulée en mode test). */

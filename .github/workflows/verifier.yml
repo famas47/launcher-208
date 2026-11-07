@@ -104,3 +104,29 @@ jobs:
         with:
           name: rapport-api${{ matrix.api }}
           path: rapport-api${{ matrix.api }}
+
+  # Rassemble tous les rapports dans un brouillon de version (privé : visible seulement par le propriétaire,
+  # jamais proposé comme mise à jour), pour pouvoir les lire depuis l'extérieur de GitHub Actions.
+  rapport:
+    needs: [ lint, emulateur ]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Récupérer les rapports
+        uses: actions/download-artifact@v8.0.2
+        with:
+          path: rapports
+
+      - name: Tout mettre dans un seul fichier
+        run: cd rapports && zip -qr ../rapport-verification-${{ github.run_number }}.zip . && ls -l ../rapport-verification-*.zip
+
+      - name: Brouillon privé avec le rapport
+        uses: softprops/action-gh-release@v3.0.4
+        with:
+          tag_name: verification-${{ github.run_number }}
+          name: Rapport de vérification ${{ github.run_number }} (brouillon, à supprimer)
+          draft: true
+          make_latest: false
+          files: rapport-verification-${{ github.run_number }}.zip

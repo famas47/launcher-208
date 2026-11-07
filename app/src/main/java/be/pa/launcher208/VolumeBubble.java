@@ -56,6 +56,7 @@ final class VolumeBubble {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT);
         bp.gravity = Gravity.TOP | Gravity.LEFT;
+        bp.setTitle("Bulle volume 208");
         placeFromPrefs();
         bubble.setOnTouchListener(new Drag());
         App.I.vol.add(volListener);

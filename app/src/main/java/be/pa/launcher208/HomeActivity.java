@@ -42,12 +42,14 @@ public class HomeActivity extends Activity {
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
+        App.mark("activité créée");
         Window w = getWindow();
         w.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
         nightNow = App.I.night.isNight(Clock.now());
         Pal.set(nightNow);
         root = new FrameLayout(this);
         build();
+        App.mark("interface construite");
         setContentView(root);
         applyWindow();
         root.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
@@ -56,6 +58,7 @@ public class HomeActivity extends Activity {
                 if (!firstFrameDone) {
                     firstFrameDone = true;
                     if (App.firstFrameMs < 0) App.firstFrameMs = SystemClock.uptimeMillis() - App.processStart;
+                    App.mark("première image prête à dessiner");
                     h.post(afterFirstFrame);
                 }
                 return true;
@@ -86,6 +89,7 @@ public class HomeActivity extends Activity {
             }
             App.I.weather.maybeRefresh(HomeActivity.this);
             CarView.preload(HomeActivity.this);
+            App.mark("tâches d'après la première image lancées");
         }
     };
 

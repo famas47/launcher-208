@@ -10,6 +10,7 @@ import android.app.usage.UsageStatsManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.content.IntentFilter;
 import android.os.Build;
 import android.os.Handler;
@@ -93,14 +94,14 @@ public class LauncherService extends Service {
             Notification n = b.build();
             if (Build.VERSION.SDK_INT >= 29) {
                 int type = 0;
-                if (App.I.loc.permitted()) type |= 8; // ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
-                if (Build.VERSION.SDK_INT >= 34) type |= 0x40000000; // FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                if (App.I.loc.permitted()) type |= ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION;
+                if (Build.VERSION.SDK_INT >= 34) type |= ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE;
                 try {
-                    if (Build.VERSION.SDK_INT < 34 && (type & 8) == 0) startForeground(42, n);
+                    if (type == 0) startForeground(42, n);
                     else startForeground(42, n, type);
                 } catch (Exception e) {
                     // Android a refusé le GPS dans ce service : on démarre au moins la bulle du volume.
-                    if (Build.VERSION.SDK_INT >= 34) startForeground(42, n, 0x40000000);
+                    if (Build.VERSION.SDK_INT >= 34) startForeground(42, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
                     else startForeground(42, n);
                 }
             } else {
