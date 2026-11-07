@@ -141,7 +141,7 @@ final class SettingsScreen extends Screen {
 
         // ----- Colonne 2 -----
         s = section(c2, "Mode conduite");
-        add(s, row("Mode conduite", "S'active au-dessus de 10 km/h", new Widgets.Toggle(a, P.drive(), new Widgets.BoolCb() {
+        add(s, row("Mode conduite", "S'active dès " + Math.round(LocationTracker.DRIVE_KMH) + " km/h", new Widgets.Toggle(a, P.drive(), new Widgets.BoolCb() {
             @Override public void on(boolean v) { P.put(P.DRIVE, v); }
         })), true);
         retVal = U.tv(a, "", 15, Pal.text, 600);

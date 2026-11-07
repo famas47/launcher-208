@@ -14,7 +14,7 @@ import org.mapsforge.map.android.view.MapView;
 
 /**
  * Mode conduite : grande vitesse, minimap (ou 3 tuiles dont la radio), gros boutons.
- * S'affiche au-dessus de 10 km/h et revient à l'accueil après l'arrêt (1 min par défaut).
+ * S'affiche dès 5 km/h et revient à l'accueil après l'arrêt (1 min par défaut).
  */
 final class DriveScreen extends Screen {
     private TextView speed, clock, weather, street, tripKm, tripMin, mapStreet, mapTrip, radioName, radioLabel, volVal, mapMsg;
