@@ -336,7 +336,10 @@ if len(dm) >= 2:
     for what, ms in dm[-4:]:
         log('    %-35s +%d ms' % (what, int(ms) - t0))
 shot('13-conduite', 0.5)
-log('  (sur la capture 13, la rue affichée doit être la rue d\'Havré, celle que suit la voiture)')
+rues = re.findall(r'Test208\s*: (rue .*)', adb('logcat -d -s Test208:I'))
+log('  noms de rue trouvés pendant le trajet (position, sens, choix | candidates distance/note) :')
+for l_ in rues[-6:]:
+    log('    ' + l_[:400])
 memory('conduite avec la carte')
 hook(vitesse=-1)
 shot('14-retour-accueil', 2)

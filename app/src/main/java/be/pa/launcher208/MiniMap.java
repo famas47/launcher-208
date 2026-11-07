@@ -153,6 +153,7 @@ final class MiniMap {
                     Tile b = new Tile(tx + 1, ty + 1, zoom, 256);
                     MapReadResult r = lookupFile.readNamedItems(a, b);
                     double bestS = Double.MAX_VALUE;
+                    StringBuilder debug = new StringBuilder();
                     if (r != null && r.ways != null) {
                         for (Way w : r.ways) {
                             String name = null;
@@ -163,11 +164,17 @@ final class MiniMap {
                             }
                             if (!road || name == null || name.isEmpty() || w.latLongs == null) continue;
                             for (LatLong[] seg : w.latLongs) {
-                                if (distance(lat, lon, seg) > 45) continue; // rue trop loin (mètres)
+                                double dist = distance(lat, lon, seg);
+                                if (dist > 45) continue; // rue trop loin (mètres)
                                 double sc = score(lat, lon, seg, dirX, dirY);
+                                if (BuildConfig.TEST_HOOKS) debug.append(String.format(java.util.Locale.ROOT, " | %s %.0fm note %.0f", name, dist, sc));
                                 if (sc < bestS) { bestS = sc; best = name; }
                             }
                         }
+                    }
+                    if (BuildConfig.TEST_HOOKS) {
+                        android.util.Log.i("Test208", String.format(java.util.Locale.ROOT, "rue %.5f,%.5f sens %.2f,%.2f -> %s%s",
+                                lat, lon, dirX, dirY, best, debug.length() > 600 ? debug.substring(0, 600) : debug));
                     }
                 } catch (Throwable ignored) {
                 }
