@@ -174,6 +174,7 @@ final class VolumeBubble {
                         | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
                 PixelFormat.TRANSLUCENT);
         pp.gravity = Gravity.TOP | Gravity.LEFT;
+        pp.setTitle("Panneau volume 208");
         panel.setOnTouchListener(new View.OnTouchListener() {
             @Override public boolean onTouch(View v, MotionEvent e) {
                 if (e.getActionMasked() == MotionEvent.ACTION_OUTSIDE) { closePanel(true); return true; }

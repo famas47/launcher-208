@@ -353,11 +353,16 @@ hook(theme=1)
 time.sleep(2)
 
 # ---------- Bulle de volume par-dessus « CarPlay » ----------
-log('\n--- Bulle de volume (Paramètres d\'Android joue le rôle de S-Play) ---')
+# Paramètres d'Android ne convient pas : depuis Android 12, il cache volontairement les bulles des autres applis.
+pkgs = adb('shell pm list packages')
+installed = {l.strip()[8:] for l in pkgs.splitlines() if l.strip().startswith('package:')}
+STANDIN = next((p for p in ('com.android.deskclock', 'com.google.android.deskclock', 'com.android.contacts',
+                            'com.android.documentsui', 'com.android.gallery3d') if p in installed), SETTINGS)
+log('\n--- Bulle de volume (%s joue le rôle de S-Play) ---' % STANDIN)
 phase('bulle')
-hook(carplay=SETTINGS)
+hook(carplay=STANDIN)
 time.sleep(1)
-adb('shell am start -a android.settings.SETTINGS')
+adb('shell monkey -p %s -c android.intent.category.LAUNCHER 1' % STANDIN)
 shot('18-bulle-sur-carplay', 4)
 log('  bulle affichée par-dessus « CarPlay » :', 'oui' if bubble_shown() else 'NON (ANORMAL)')
 m = re.findall(r'(\d+)x(\d+)', adb('shell wm size'))
@@ -366,8 +371,11 @@ k = min(W / 1280.0, H / 720.0)
 bx, by = int(W - 14 * k - 30 * k), int(H / 2)
 adb('shell input tap %d %d' % (bx, by))
 shot('19-bulle-ouverte', 1.2)
+log('  grand panneau ouvert au toucher :', 'oui' if 'Panneau volume 208' in adb('shell dumpsys window windows') else 'NON (ANORMAL)')
 time.sleep(4)                                   # se referme seule après 3 s
 shot('20-bulle-refermee', 0.5)
+w = adb('shell dumpsys window windows')
+log('  panneau refermé seul après 3 s :', 'oui' if 'Panneau volume 208' not in w and 'Bulle volume 208' in w else 'NON (ANORMAL)')
 swipe(bx, by, bx - 400, by - 200, 800)          # déplacer la bulle au doigt
 shot('21-bulle-deplacee', 1.5)
 adb('shell input keyevent 3')                   # bouton accueil
