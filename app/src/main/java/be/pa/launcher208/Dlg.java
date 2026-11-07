@@ -54,7 +54,7 @@ final class Dlg {
         int theme = Pal.night ? android.R.style.Theme_DeviceDefault_Dialog_Alert : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
         new DatePickerDialog(a, theme, new DatePickerDialog.OnDateSetListener() {
             @Override public void onDateSet(DatePicker v, int y, int m, int d) {
-                Calendar r = Calendar.getInstance(Fmt.TZ, Fmt.FR);
+                Calendar r = Calendar.getInstance(Fmt.tz(), Fmt.FR);
                 r.clear();
                 r.set(y, m, d, 12, 0, 0);
                 cb.on(r.getTimeInMillis());

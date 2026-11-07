@@ -10,7 +10,6 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.URL;
 
 /**
  * Téléchargement de la carte de Belgique (environ 500 Mo), avec reprise si la connexion coupe.
@@ -52,10 +51,9 @@ final class MapDl {
                     File dir = part.getParentFile();
                     if (dir != null && !dir.exists()) dir.mkdirs();
                     long have = part.exists() ? part.length() : 0;
-                    h = (HttpURLConnection) new URL(URL_MAP).openConnection();
+                    h = Net.open(URL_MAP);
                     h.setConnectTimeout(15000);
                     h.setReadTimeout(30000);
-                    h.setRequestProperty("User-Agent", "Launcher208");
                     if (have > 0) h.setRequestProperty("Range", "bytes=" + have + "-");
                     int code = h.getResponseCode();
                     if (code == 416 && have > 0) { // déjà tout reçu
@@ -97,7 +95,7 @@ final class MapDl {
                     if (total > 0 && part.length() < total) throw new Exception("téléchargement incomplet, touche pour reprendre");
                     finish(part, dest);
                 } catch (Exception e) {
-                    status = "Interrompu : " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+                    status = "Interrompu : " + Net.why(e);
                 } finally {
                     if (h != null) h.disconnect();
                     running = false;

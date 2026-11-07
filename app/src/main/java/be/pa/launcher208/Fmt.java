@@ -4,9 +4,12 @@ import java.util.Calendar;
 import java.util.Locale;
 import java.util.TimeZone;
 
-/** Mise en forme en français, à l'heure de Bruxelles (même si l'autoradio est mal réglé). */
+/** Mise en forme en français, dans le fuseau horaire de l'autoradio (comme son heure et le tableau de bord). */
 final class Fmt {
-    static final TimeZone TZ = TimeZone.getTimeZone("Europe/Brussels");
+    static final TimeZone BRUSSELS = TimeZone.getTimeZone("Europe/Brussels");
+
+    /** Fuseau de l'autoradio (relu à chaque fois : il peut être changé dans les réglages d'Android). */
+    static TimeZone tz() { return TimeZone.getDefault(); }
     static final Locale FR = Locale.FRANCE;
     private static final String[] DAYS = {"Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"};
     private static final String[] DAYS_S = {"D", "L", "M", "M", "J", "V", "S"};
@@ -14,9 +17,16 @@ final class Fmt {
             "août", "septembre", "octobre", "novembre", "décembre"};
 
     static Calendar cal(long t) {
-        Calendar c = Calendar.getInstance(TZ, FR);
+        Calendar c = Calendar.getInstance(tz(), FR);
         c.setTimeInMillis(t);
         return c;
+    }
+
+    /** Heure à Bruxelles (pour le conseil « il est en réalité… », même si le fuseau de l'autoradio est faux). */
+    static String hhmmBrussels(long t) {
+        Calendar c = Calendar.getInstance(BRUSSELS, FR);
+        c.setTimeInMillis(t);
+        return two(c.get(Calendar.HOUR_OF_DAY)) + ":" + two(c.get(Calendar.MINUTE));
     }
 
     static String hhmm(long t) {

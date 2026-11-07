@@ -173,6 +173,17 @@ def bubble_shown():
     return 'Bulle volume 208' in adb('shell dumpsys window windows')
 
 
+def etat(label, wait=0):
+    """Demande à l'appli son état (mise à jour, carte, météo, heure, conduite) et l'écrit dans le rapport."""
+    if wait:
+        time.sleep(wait)
+    hook(etat=1)
+    time.sleep(1.5)
+    l = re.findall(r'etat (.*)', adb('logcat -d -s Test208:I'))
+    log('  %s : %s' % (label, l[-1] if l else '(pas de réponse)'))
+    return l[-1] if l else ''
+
+
 def car_bounds():
     hook(info=1)
     time.sleep(1.5)
@@ -259,6 +270,16 @@ for k in range(3):
     time.sleep(1)
 gfx('Paramètres d\'Android (référence)', SETTINGS)
 adb('shell am start -n ' + ACT)
+time.sleep(2)
+
+# ---------- Internet à la bonne date ----------
+log('\n--- Internet (date juste) : météo, mise à jour, carte ---')
+phase('internet')
+hook(meteo=1)
+hook(maj=1)
+hook(carte=1)
+etat('après 15 s', 15)
+hook(carte=0)
 time.sleep(2)
 
 # ---------- Voiture 360° ----------
@@ -351,6 +372,17 @@ hook(trajets=1)
 shot('14d-trajets-avec-donnees', 2)
 hook(onglet=0)
 
+# ---------- Seuil du mode conduite ----------
+log('\n--- Seuil du mode conduite (5 km/h) ---')
+phase('seuil')
+hook(vitesse=4)
+r4 = etat('à 4 km/h pendant 4 s (ne doit PAS passer en conduite)', 4)
+hook(vitesse=6)
+r6 = etat('à 6 km/h pendant 4 s (doit passer en conduite)', 4)
+hook(vitesse=-1)
+time.sleep(1)
+log('  verdict seuil :', 'OK' if 'conduite=false' in r4 and 'conduite=true' in r6 else 'ANORMAL')
+
 # ---------- Nuit ----------
 log('\n--- Mode nuit ---')
 phase('nuit')
@@ -382,7 +414,7 @@ log('  bulle affichée par-dessus « CarPlay » :', 'oui' if bubble_shown() else
 m = re.findall(r'(\d+)x(\d+)', adb('shell wm size'))
 W, H = (int(m[-1][0]), int(m[-1][1])) if m else (1280, 720)
 k = min(W / 1280.0, H / 720.0)
-bx, by = int(W - 14 * k - 30 * k), int(H / 2)
+bx, by = int(W - 14 * k - 30 * k), int(H * 22 / 100 + 30 * k)
 adb('shell input tap %d %d' % (bx, by))
 shot('19-bulle-ouverte', 1.2)
 log('  grand panneau ouvert au toucher :', 'oui' if 'Panneau volume 208' in adb('shell dumpsys window windows') else 'NON (ANORMAL)')
@@ -416,6 +448,32 @@ hook(ecran=0); time.sleep(1)
 m3 = memory('après le tour des écrans')
 if min(m0, m1, m2, m3) > 0:
     log('  évolution : %+d Mo, puis %+d Mo, puis %+d Mo (stable = pas de fuite)' % (m1 - m0, m2 - m1, m3 - m2))
+
+# ---------- Autoradio à une date fausse (comme après un démarrage complet) ----------
+log('\n--- Date fausse : l\'autoradio croit être le 1er janvier 2025 ---')
+phase('date fausse')
+adb('shell settings put global auto_time 0')
+adb('shell date -u 010112002025.00')
+log('  date de l\'autoradio :', adb('shell date').strip())
+adb('shell am force-stop ' + PKG)            # comme un redémarrage : l'appli repart de zéro
+time.sleep(1)
+adb('shell am start -W -n ' + ACT)
+time.sleep(3)
+p0 = pid()  # redémarrage volontaire de l'appli pour ce test : on compare désormais avec ce processus-ci
+hook(meteo=1)
+hook(maj=1)
+hook(carte=1)
+etat('après 20 s', 20)
+hook(carte=0)
+shot('24-date-fausse-accueil', 1)
+hook(ecran=2)
+shot('25-date-fausse-reglages', 2)
+hook(ecran=0)
+# remise à l'heure de l'émulateur
+adb('shell date -u ' + time.strftime('%m%d%H%M%Y.%S', time.gmtime()))
+adb('shell settings put global auto_time 1')
+log('  date remise :', adb('shell date').strip())
+time.sleep(2)
 
 # ---------- Stress : 1500 touchers au hasard ----------
 log('\n--- Stress : 1500 touchers au hasard (monkey) ---')

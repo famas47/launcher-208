@@ -30,12 +30,12 @@ final class HomeScreen extends Screen {
     private TextView[] segTabs;
     private TextView subtitle;
     private CarView car;
-    private View arrowL, arrowR, doorChip, topCard;
+    private View arrowL, arrowR, doorChip, topCard, permChip;
     private TextView hint, doorText, doorExtra;
     private TopView top;
     private TextView parkTitle, parkSub, dayTitle, maintTitle, maintSub;
     // Colonne de droite
-    private TextView cpStatus, clock, date, wTemp, wLabel, speedVal, outVal, volVal;
+    private TextView cpStatus, clock, date, wTemp, wLabel, speedVal, outVal, volVal, speedLbl;
     private ImageView wIcon;
     private View cpDot;
     private Widgets.Bar speedBar, outBar, volBar;
@@ -116,6 +116,19 @@ final class HomeScreen extends Screen {
         chip.addView(doorExtra, U.lpm(U.WR, U.WR, 8, 0, 0, 0));
         doorChip = chip;
         carPane.addView(chip, U.flm(U.WR, U.s(48), Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 100, 0, 0));
+
+        // Rappel : la bulle du volume sur CarPlay a besoin de 2 autorisations (données dans le mode test)
+        LinearLayout pc = U.row(a);
+        pc.setBackground(U.rrStroke(Pal.warnBg, 24, Pal.warnLine, 2));
+        U.pad(pc, 14, 0, 20, 0);
+        pc.addView(U.box(a, 30, U.oval(Pal.ORANGE), R.drawable.ic_alert, 18, Pal.WHITE));
+        pc.addView(U.tv(a, "Bulle du volume : autorisations à donner · touche ici", 15, Pal.warnText, 600), U.lpm(U.WR, U.WR, 10, 0, 0, 0));
+        U.click(pc, 24, new Runnable() {
+            @Override public void run() { a.showScreen(HomeActivity.S_TEST); }
+        });
+        permChip = pc;
+        pc.setVisibility(View.GONE);
+        carPane.addView(pc, U.flm(U.WR, U.s(48), Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 100, 0, 0));
 
         LinearLayout tc = U.col(a);
         tc.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -251,7 +264,11 @@ final class HomeScreen extends Screen {
         wr.addView(wLabel, U.lpm(U.WR, U.WR, 0, 2, 0, 0));
         cw.addView(wr, U.lp(U.WR, U.WR));
         U.click(cw, 28, new Runnable() {
-            @Override public void run() { a.showScreen(HomeActivity.S_CONN); }
+            @Override public void run() {
+                // heure qui paraît fausse : on ouvre directement « Date et heure » d'Android pour la régler
+                if (Clock.suspicious()) AppsRepo.openSettings(a, android.provider.Settings.ACTION_DATE_SETTINGS);
+                else a.showScreen(HomeActivity.S_CONN);
+            }
         });
         col.addView(cw, U.lp(U.M, U.s(150)));
         col.addView(U.gap(a, -1, 16));
@@ -262,6 +279,7 @@ final class HomeScreen extends Screen {
         speedBar = new Widgets.Bar(a, 0, Pal.accent);
         View sp = tile("Vitesse", speedBar);
         speedVal = (TextView) ((LinearLayout) sp).getChildAt(2);
+        speedLbl = (TextView) ((LinearLayout) sp).getChildAt(0);
         outBar = new Widgets.Bar(a, 0, Pal.teal);
         View ou = tile("Extérieur", outBar);
         outVal = (TextView) ((LinearLayout) ou).getChildAt(2);
@@ -326,6 +344,9 @@ final class HomeScreen extends Screen {
 
     // ================= Mises à jour =================
     @Override void tick() {
+        // « Vitesse · recherche GPS » tant que le GPS n'a pas trouvé sa position (la vitesse vient du GPS)
+        boolean gps = App.I.simSpeed >= 0 || App.I.loc.hasFix();
+        if (speedLbl != null) U.text(speedLbl, gps ? "Vitesse" : "Vitesse · recherche GPS");
         int s = Math.round(App.I.speed());
         if (s != lastSpeed) {
             lastSpeed = s;
@@ -336,9 +357,18 @@ final class HomeScreen extends Screen {
 
     @Override void refresh() {
         if (root == null) return;
+        updatePermChip();
         long now = Clock.now();
-        clock.setText(Clock.trusted() ? Fmt.hhmm(now) : "--:--");
-        date.setText(Clock.trusted() ? Fmt.dayLong(now) : "Heure en attente du GPS");
+        clock.setText(Fmt.hhmm(now));
+        if (Clock.suspicious()) {
+            long real = Clock.realOrUnknown();
+            date.setText(real > 0 ? "Il est " + Fmt.hhmmBrussels(real) + " · touche pour régler"
+                    : Clock.wrongZone() ? "Fuseau horaire à régler · touche ici" : "Heure à vérifier · touche pour régler");
+            date.setTextColor(Pal.ORANGE_D);
+        } else {
+            date.setText(Fmt.dayLong(now));
+            date.setTextColor(Pal.text2);
+        }
         Weather w = App.I.weather;
         if (w.has() && w.fresh()) {
             wIcon.setImageDrawable(U.dr(a, Weather.icon(w.code(), w.isDay()), Pal.text));
@@ -393,6 +423,7 @@ final class HomeScreen extends Screen {
         int d = Doors.main(m);
         car.showDoor(d);
         doorChip.setVisibility(open ? View.VISIBLE : View.GONE);
+        updatePermChip();
         topCard.setVisibility(open ? View.VISIBLE : View.GONE);
         arrowL.setVisibility(open ? View.GONE : View.VISIBLE);
         arrowR.setVisibility(open ? View.GONE : View.VISIBLE);
@@ -418,6 +449,13 @@ final class HomeScreen extends Screen {
             subtitle.setTextColor(Pal.text2);
             hint.setText("Glisse le doigt pour la faire tourner");
         }
+    }
+
+    /** Bandeau « autorisations à donner » : bulle activée mais pas encore autorisée (et aucune porte ouverte). */
+    private void updatePermChip() {
+        if (permChip == null) return;
+        boolean missing = P.bubble() && (!LauncherService.canOverlay(a) || !LauncherService.usageAccess(a));
+        permChip.setVisibility(missing && App.I.doors.mask() == 0 ? View.VISIBLE : View.GONE);
     }
 
     /** Sous-titre sous « Peugeot 208 », selon l'onglet (comme sur les maquettes). */

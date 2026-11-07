@@ -64,7 +64,10 @@ final class Night {
             if (from == to) return false;
             return from > to ? (m >= from || m < to) : (m >= from && m < to);
         }
-        boolean sun = Sun.isNight(now, P.lat(), P.lon());
+        // Soleil : avec l'heure réelle si elle est connue (Internet). Si l'heure de l'autoradio est fausse et
+        // qu'on ne connaît pas l'heure réelle, on reste en jour plutôt que de passer en nuit en pleine journée.
+        long t = Net.realKnown() ? Net.realNow() : (Clock.suspicious() ? -1 : now);
+        boolean sun = t > 0 && Sun.isNight(t, P.lat(), P.lon());
         if (by == 1 || !headlightsKnown()) return sun;
         int cur = brightness();
         if (cur < 0) return sun;

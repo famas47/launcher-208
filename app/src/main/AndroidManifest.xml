@@ -9,6 +9,8 @@
     <!-- GPS : vitesse, trajets, heure, minimap -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Aide au GPS (données des satellites) après un démarrage complet de l'autoradio -->
+    <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
     <!-- Bulle du volume par-dessus CarPlay -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Savoir quand CarPlay (S-Play) est à l'écran -->
@@ -42,6 +44,8 @@
         </intent>
     </queries>
 
+    <!-- usesCleartextTraffic : seulement pour lire l'heure réelle dans l'en-tête « Date » d'une réponse
+         de GitHub (rien n'est envoyé) quand l'autoradio n'est pas à la bonne date. Tout le reste passe en https. -->
     <application
         android:name=".App"
         android:allowBackup="true"
@@ -51,6 +55,7 @@
         android:theme="@style/Launcher208"
         android:largeHeap="false"
         android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="true"
         tools:ignore="GoogleAppIndexingWarning">
 
         <activity

@@ -44,6 +44,8 @@ final class LocationTracker implements LocationListener {
     private int fixCount;
     private float pendingKm;       // km GPS pas encore enregistrés
     static final float START_KMH = 10f, STOP_KMH = 3f;
+    /** Mode conduite : dès 5 km/h (tenus 2 secondes, pour ignorer les petits sauts du GPS à l'arrêt). */
+    static final float DRIVE_KMH = 5f;
     static final long TRIP_END_MS = 3L * 60000L;
 
     LocationTracker(Context c, TripStore trips) {
@@ -67,6 +69,11 @@ final class LocationTracker implements LocationListener {
                 lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, this, Looper.getMainLooper());
                 running = true;
             }
+            // Après un démarrage complet de l'autoradio, le GPS repart de zéro : on lui demande de récupérer
+            // ses données d'aide (heure et position des satellites) pour trouver sa position plus vite.
+            // Sans effet si la puce GPS de l'autoradio ne le gère pas.
+            try { lm.sendExtraCommand(LocationManager.GPS_PROVIDER, "force_time_injection", null); } catch (Exception ignored) { }
+            try { lm.sendExtraCommand(LocationManager.GPS_PROVIDER, "force_xtra_injection", null); } catch (Exception ignored) { }
             Location last = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
             if (last != null && !P.hasPos()) savePos(last.getLatitude(), last.getLongitude());
             if (Build.VERSION.SDK_INT >= 24) {
@@ -122,7 +129,9 @@ final class LocationTracker implements LocationListener {
         Clock.onGpsTime(l.getTime());
         float kmh;
         if (l.hasSpeed()) kmh = l.getSpeed() * 3.6f;
-        else if (prev != null && l.getTime() > prev.getTime()) kmh = prev.distanceTo(l) / ((l.getTime() - prev.getTime()) / 1000f) * 3.6f;
+        else if (prev != null && l.getTime() > prev.getTime() && (!l.hasAccuracy() || l.getAccuracy() < 25)) {
+            kmh = prev.distanceTo(l) / ((l.getTime() - prev.getTime()) / 1000f) * 3.6f; // GPS sans vitesse : on la calcule
+        }
         else kmh = 0;
         if (kmh < 2f) kmh = 0;
         speedKmh = kmh;

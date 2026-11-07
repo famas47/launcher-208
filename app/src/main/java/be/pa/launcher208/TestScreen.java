@@ -89,6 +89,11 @@ final class TestScreen extends Screen {
         }, "Autoriser", new Runnable() {
             @Override public void run() { open("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS", false); }
         });
+        check(s, "Voir ton iPhone en Bluetooth", new Status() {
+            @Override public String get() { return PhoneWatch.permitted(a) ? "OK" : "Non autorisé (« Appareils à proximité »)"; }
+        }, "Autoriser", new Runnable() {
+            @Override public void run() { a.requestPerm(android.Manifest.permission.BLUETOOTH_CONNECT, HomeActivity.REQ_BT); }
+        });
         check(s, "Installer les mises à jour", new Status() {
             @Override public String get() { return Updater.canInstall(a) ? "OK" : "Non autorisé"; }
         }, "Autoriser", new Runnable() {
@@ -121,6 +126,22 @@ final class TestScreen extends Screen {
         }, "Choisir", new Runnable() {
             @Override public void run() { a.chooseApp("Application CarPlay", P.PKG_CARPLAY, null); }
         });
+        check(s, "iPhone en Bluetooth", new Status() {
+            @Override public String get() {
+                int n = PhoneWatch.bonded().size();
+                String seen = PhoneWatch.lastSeen.isEmpty() ? "aucune connexion vue"
+                        : "dernière connexion : " + PhoneWatch.lastSeen + " (il y a "
+                        + ((android.os.SystemClock.elapsedRealtime() - PhoneWatch.lastSeenAt) / 60000L) + " min)";
+                return "appareils jumelés vus par Android : " + n + " · " + seen
+                        + (PhoneWatch.lastAction.isEmpty() ? "" : " · " + PhoneWatch.lastAction);
+            }
+        }, null, null);
+        check(s, "Écrans CarPlay reconnus", new Status() {
+            @Override public String get() {
+                String l = P.s(P.CARPLAY_PKGS);
+                return App.I.apps.carplayPkg() + (l.isEmpty() ? "" : " + " + l.replace(",", ", "));
+            }
+        }, null, null);
         check(s, "Dernière appli à l'écran", new Status() {
             @Override public String get() { LauncherService ls = LauncherService.I; return ls == null ? "service arrêté" : ls.fgPkg.isEmpty() ? "inconnue" : ls.fgPkg; }
         }, null, null);
@@ -165,8 +186,12 @@ final class TestScreen extends Screen {
         }, null, null);
         check(s, "Heure", new Status() {
             @Override public String get() {
-                return "autoradio " + Fmt.hhmm(System.currentTimeMillis()) + " · launcher " + (Clock.trusted() ? Fmt.hhmm(Clock.now()) : "--:--")
-                        + (Clock.fromGps() ? " (GPS)" : "");
+                long s = System.currentTimeMillis(), real = Clock.realOrUnknown(), gps = Clock.gpsNow();
+                return "autoradio " + Fmt.dateShort(s) + " " + Fmt.hhmm(s)
+                        + " (" + java.util.TimeZone.getDefault().getID() + ")"
+                        + " · Internet " + (real > 0 ? Fmt.dateShort(real) + " " + Fmt.hhmmBrussels(real) : "inconnue")
+                        + " · GPS " + (gps > 0 ? Fmt.hhmm(gps) : "aucune")
+                        + (Clock.suspicious() ? " · À RÉGLER" : " · OK");
             }
         }, null, null);
         check(s, "Luminosité (phares)", new Status() {

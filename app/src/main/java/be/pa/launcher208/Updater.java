@@ -14,7 +14,6 @@ import org.json.JSONObject;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.URL;
 
 /**
  * Mises à jour depuis GitHub : le launcher regarde la dernière version fabriquée par GitHub,
@@ -67,7 +66,7 @@ final class Updater {
                 } catch (Exception e) {
                     String m = e.getMessage() == null ? "" : e.getMessage();
                     if (m.contains("404")) status = "Aucune version publiée, ou projet GitHub privé";
-                    else status = "Impossible de vérifier : " + (m.isEmpty() ? e.getClass().getSimpleName() : m);
+                    else status = "Impossible de vérifier : " + Net.why(e);
                 } finally {
                     busy = false;
                     changed();
@@ -110,10 +109,9 @@ final class Updater {
                 PackageInstaller.Session s = null;
                 HttpURLConnection h = null;
                 try {
-                    h = (HttpURLConnection) new URL(url).openConnection();
+                    h = Net.open(url);
                     h.setConnectTimeout(15000);
                     h.setReadTimeout(30000);
-                    h.setRequestProperty("User-Agent", "Launcher208");
                     if (h.getResponseCode() != 200) throw new Exception("téléchargement refusé (" + h.getResponseCode() + ")");
                     long len = h.getContentLength();
                     PackageInstaller pi = c.getPackageManager().getPackageInstaller();
@@ -145,7 +143,7 @@ final class Updater {
                     s.close();
                     s = null;
                 } catch (Exception e) {
-                    status = "Échec : " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+                    status = "Échec : " + Net.why(e);
                     if (s != null) try { s.abandon(); } catch (Exception ignored) { }
                 } finally {
                     if (h != null) h.disconnect();

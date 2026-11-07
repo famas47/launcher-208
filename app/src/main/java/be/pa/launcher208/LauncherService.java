@@ -16,6 +16,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.Settings;
 
 /**
@@ -30,6 +31,7 @@ public class LauncherService extends Service {
     private long lastQuery;
     volatile String fgPkg = "";
     private boolean screenOn = true;
+    private PhoneWatch phones;
     private BroadcastReceiver screenRx;
 
     static void start(Context c) {
@@ -49,6 +51,8 @@ public class LauncherService extends Service {
         App.I.loc.start();
         if (!App.I.apps.loaded()) App.I.apps.load();
         bubble = new VolumeBubble(this);
+        phones = new PhoneWatch(this);
+        phones.start();
         screenRx = new BroadcastReceiver() {
             @Override public void onReceive(Context c, Intent i) {
                 String a = i.getAction();
@@ -122,8 +126,11 @@ public class LauncherService extends Service {
         @Override public void run() {
             if (screenOn && P.bubble()) {
                 String fg = foreground();
-                if (fg != null) fgPkg = fg;
-                boolean show = !fgPkg.isEmpty() && fgPkg.equals(App.I.apps.carplayPkg()) && canOverlay(LauncherService.this);
+                if (fg != null) {
+                    if (!fg.equals(fgPkg)) learnCarplayScreen(fg);
+                    fgPkg = fg;
+                }
+                boolean show = isCarplay(fgPkg) && canOverlay(LauncherService.this);
                 if (show) bubble.show(); else bubble.hide();
             } else {
                 bubble.hide();
@@ -166,12 +173,51 @@ public class LauncherService extends Service {
 
     void resetBubble() { if (bubble != null) bubble.resetPosition(); }
 
+    // ---------- Reconnaître l'écran CarPlay ----------
+    // Sur certains autoradios, S-Play affiche CarPlay dans une AUTRE appli (son module CarPlay).
+    // L'appli qui passe devant juste après l'ouverture de CarPlay est donc retenue comme « écran CarPlay ».
+    private long cpOpenedAt;
+
+    /** Appelé quand le launcher vient d'ouvrir l'appli CarPlay. */
+    void carplayOpened() { cpOpenedAt = SystemClock.elapsedRealtime(); }
+
+    static boolean isCarplay(String pkg) {
+        if (pkg == null || pkg.isEmpty()) return false;
+        if (pkg.equals(App.I.apps.carplayPkg())) return true;
+        if (pkg.toLowerCase(java.util.Locale.ROOT).contains("carplay")) return true;
+        for (String p : P.s(P.CARPLAY_PKGS).split(",")) if (p.equals(pkg)) return true;
+        return false;
+    }
+
+    private static boolean isHomeApp(String pkg) {
+        for (android.content.pm.ResolveInfo r : App.I.apps.otherHomes()) {
+            if (r.activityInfo != null && pkg.equals(r.activityInfo.packageName)) return true;
+        }
+        return false;
+    }
+
+    private void learnCarplayScreen(String fg) {
+        if (cpOpenedAt == 0 || SystemClock.elapsedRealtime() - cpOpenedAt > 10000L) return;
+        if (isCarplay(fg) || fg.equals(getPackageName()) || fg.equals("android") || fg.contains("systemui")
+                || isHomeApp(fg)) return;
+        String cur = P.s(P.CARPLAY_PKGS);
+        java.util.ArrayList<String> l = new java.util.ArrayList<>();
+        for (String p : cur.split(",")) if (!p.isEmpty()) l.add(p);
+        l.add(0, fg);
+        while (l.size() > 4) l.remove(l.size() - 1);
+        StringBuilder b = new StringBuilder();
+        for (String p : l) { if (b.length() > 0) b.append(','); b.append(p); }
+        P.put(P.CARPLAY_PKGS, b.toString());
+        cpOpenedAt = 0;
+    }
+
     void refreshBubble() { if (bubble != null) bubble.refresh(); }
 
     @Override public void onDestroy() {
         h.removeCallbacks(poll);
         if (bubble != null) bubble.hide();
         try { unregisterReceiver(screenRx); } catch (Exception ignored) { }
+        if (phones != null) phones.stop();
         App.I.loc.stop();
         I = null;
         super.onDestroy();

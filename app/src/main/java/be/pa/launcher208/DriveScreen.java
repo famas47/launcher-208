@@ -402,7 +402,7 @@ final class DriveScreen extends Screen {
     @Override void refresh() {
         if (root == null) return;
         long now = Clock.now();
-        clock.setText(Clock.trusted() ? Fmt.hhmm(now) : "--:--");
+        clock.setText(Fmt.hhmm(now));
         Weather w = App.I.weather;
         weather.setText(w.has() && w.fresh() ? w.temp() + "°" : "");
         volumeChanged();

@@ -66,7 +66,7 @@ final class VolumeBubble {
         int x = P.i(P.BUBBLE_X, -1), y = P.i(P.BUBBLE_Y, -1);
         if (x < 0 || y < 0) {
             x = U.W - U.s(14) - size;
-            y = U.H / 2 - size / 2;
+            y = defaultY();
         }
         bp.x = clamp(x, 0, U.W - size);
         bp.y = clamp(y, 0, U.H - size);
@@ -99,7 +99,7 @@ final class VolumeBubble {
         P.put(P.BUBBLE_Y, -1);
         if (bp == null) return;
         bp.x = U.W - U.s(14) - size;
-        bp.y = U.H / 2 - size / 2;
+        bp.y = defaultY();
         if (bubbleShown) try { wm.updateViewLayout(bubble, bp); } catch (Exception ignored) { }
     }
 
@@ -109,6 +109,9 @@ final class VolumeBubble {
         if (slider != null) slider.set(v, mx);
         if (value != null) value.setText(String.valueOf(v));
     }
+
+    /** En haut à droite : l'autoradio a déjà son propre bouton rond flottant à droite, au milieu. */
+    private int defaultY() { return U.H * 22 / 100; }
 
     private static int clamp(int v, int a, int b) { return Math.max(a, Math.min(b, v)); }
 

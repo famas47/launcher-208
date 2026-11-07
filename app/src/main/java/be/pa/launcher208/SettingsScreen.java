@@ -8,7 +8,7 @@ import android.widget.TextView;
 
 /** Réglages du launcher (les réglages de l'autoradio restent dans ses écrans d'origine). */
 final class SettingsScreen extends Screen {
-    private TextView cpApp, radioApp, musicApp, phoneApp, camApp, retVal, odoVal, volVal, clockVal, nightRange, mapStatus, updStatus, version;
+    private TextView phoneVal, cpApp, radioApp, musicApp, phoneApp, camApp, retVal, odoVal, volVal, clockVal, nightRange, mapStatus, updStatus, version;
     private TextView mapBtn, updBtn;
     private View nightRangeRow;
 
@@ -77,8 +77,16 @@ final class SettingsScreen extends Screen {
         s = section(c1, "CarPlay");
         cpApp = U.tv(a, "", 14, Pal.text2, 500);
         add(s, row("Application CarPlay", "Celle qui affiche CarPlay", valueBtn(cpApp, chooser("Application CarPlay", P.PKG_CARPLAY))), true);
-        add(s, row("Ouvrir CarPlay au démarrage", "Dès que la voiture s'allume", new Widgets.Toggle(a, P.carplayAtStart(), new Widgets.BoolCb() {
-            @Override public void on(boolean v) { P.put(P.CARPLAY_AT_START, v); }
+        add(s, row("Ouvrir CarPlay tout seul", "« iPhone » : quand ton iPhone se connecte en Bluetooth",
+                Widgets.seg(a, new String[]{"Non", "Au démarrage", "iPhone"}, P.carplayAuto(), new Widgets.IntCb() {
+            @Override public void on(int v) {
+                P.put(P.CARPLAY_AUTO, v);
+                if (v == PhoneWatch.AUTO_PHONE && !PhoneWatch.permitted(a)) askBluetooth();
+            }
+        })), true);
+        phoneVal = U.tv(a, "", 14, Pal.text2, 500);
+        add(s, row("Ton iPhone", "Celui qui ouvre CarPlay en se connectant", valueBtn(phoneVal, new Runnable() {
+            @Override public void run() { pickPhone(); }
         })), true);
         LinearLayout bubbleRight = U.row(a);
         TextView replace = U.tv(a, "Replacer la bulle", 14, Pal.text, 600);
@@ -90,7 +98,7 @@ final class SettingsScreen extends Screen {
                 P.put(P.BUBBLE_X, -1);
                 P.put(P.BUBBLE_Y, -1);
                 if (LauncherService.I != null) LauncherService.I.resetBubble();
-                android.widget.Toast.makeText(a, "Bulle remise à droite, au milieu", android.widget.Toast.LENGTH_SHORT).show();
+                android.widget.Toast.makeText(a, "Bulle remise en haut à droite", android.widget.Toast.LENGTH_SHORT).show();
             }
         });
         bubbleRight.addView(replace, U.lp(U.WR, U.s(38)));
@@ -165,8 +173,10 @@ final class SettingsScreen extends Screen {
         s.addView(mb, U.lpm(U.WR, U.WR, 0, 0, 0, 10));
 
         s = section(c2, "Heure et voiture");
-        clockVal = U.tv(a, "", 14, Pal.ok, 600);
-        add(s, row("Heure", "Affiche --:-- tant qu'elle n'est pas sûre", clockVal), true);
+        clockVal = U.tv(a, "", 14, Pal.text, 600);
+        add(s, row("Heure", "Celle de l'autoradio (reprise par le tableau de bord)", valueBtn(clockVal, new Runnable() {
+            @Override public void run() { AppsRepo.openSettings(a, android.provider.Settings.ACTION_DATE_SETTINGS); }
+        })), true);
         odoVal = U.tv(a, "", 15, Pal.text, 600);
         add(s, row("Kilométrage", "Pour les rappels d'entretien", valueBtn(odoVal, new Runnable() {
             @Override public void run() {
@@ -239,6 +249,36 @@ final class SettingsScreen extends Screen {
         if (line) section.addView(U.line(a));
     }
 
+    private void askBluetooth() {
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            a.requestPermissions(new String[]{android.Manifest.permission.BLUETOOTH_CONNECT}, HomeActivity.REQ_BT);
+        }
+    }
+
+    /** Choix du téléphone parmi les appareils Bluetooth jumelés à l'autoradio. */
+    private void pickPhone() {
+        if (!PhoneWatch.permitted(a)) {
+            android.widget.Toast.makeText(a, "Autorise « Appareils à proximité » pour voir ton iPhone", android.widget.Toast.LENGTH_LONG).show();
+            askBluetooth();
+            return;
+        }
+        final java.util.ArrayList<String[]> l = PhoneWatch.bonded();
+        if (l.isEmpty()) {
+            android.widget.Toast.makeText(a, "Android ne voit aucun appareil Bluetooth jumelé (voir Mode test)", android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
+        String[] items = new String[l.size() + 1];
+        items[0] = "N'importe quel iPhone (automatique)";
+        for (int i = 0; i < l.size(); i++) items[i + 1] = l.get(i)[1];
+        a.dialog().setTitle("Ton iPhone").setItems(items, new android.content.DialogInterface.OnClickListener() {
+            @Override public void onClick(android.content.DialogInterface d, int w) {
+                if (w == 0) { P.put(P.BT_PHONE, ""); P.put(P.BT_PHONE_NAME, ""); }
+                else { P.put(P.BT_PHONE, l.get(w - 1)[0]); P.put(P.BT_PHONE_NAME, l.get(w - 1)[1]); }
+                refresh();
+            }
+        }).setNegativeButton("Annuler", null).show();
+    }
+
     private View valueBtn(TextView t, Runnable click) {
         t.setGravity(Gravity.CENTER);
         t.setBackground(U.rr(Pal.card2, 13));
@@ -299,6 +339,8 @@ final class SettingsScreen extends Screen {
 
     @Override void refresh() {
         if (root == null) return;
+        String ph = P.s(P.BT_PHONE_NAME);
+        phoneVal.setText(ph.isEmpty() ? "Tout iPhone" : ph);
         cpApp.setText(appName(P.PKG_CARPLAY, AppsRepo.CARPLAY));
         radioApp.setText(appName(P.PKG_RADIO, AppsRepo.RADIO));
         musicApp.setText(appName(P.PKG_MUSIC, AppsRepo.MUSIC));
@@ -311,9 +353,8 @@ final class SettingsScreen extends Screen {
         volVal.setText("Max " + P.volStartMax());
         nightRangeRow.setVisibility(P.nightBy() == 2 ? View.VISIBLE : View.GONE);
         nightRange.setText(Fmt.hm(P.i(P.NIGHT_FROM, 1200)) + " → " + Fmt.hm(P.i(P.NIGHT_TO, 420)));
-        if (Clock.fromGps()) { clockVal.setText("Réglée par le GPS"); clockVal.setTextColor(Pal.ok); }
-        else if (Clock.trusted()) { clockVal.setText("Heure de l'autoradio"); clockVal.setTextColor(Pal.text); }
-        else { clockVal.setText("En attente du GPS"); clockVal.setTextColor(Pal.ORANGE_D); }
+        clockVal.setText(Clock.suspicious() ? "À régler" : "Régler");
+        clockVal.setTextColor(Clock.suspicious() ? Pal.ORANGE_D : Pal.text);
 
         MapDl d = App.I.mapdl;
         if (d.running) {

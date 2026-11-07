@@ -37,9 +37,12 @@ public class HomeActivity extends Activity {
     private DriveScreen drive;
     private boolean driving, resumed, nightNow;
     private long stopSince;
+    private int fastTicks;
     private int lastMinute = -1;
     private boolean firstFrameDone;
     private static java.lang.ref.WeakReference<HomeActivity> live;
+    /** Vrai quand l'écran d'accueil est devant (pour ne pas ouvrir CarPlay par-dessus une autre appli). */
+    static volatile boolean visible;
     private long createdAt;
 
     @Override protected void onCreate(Bundle b) {
@@ -133,7 +136,7 @@ public class HomeActivity extends Activity {
     };
 
     private void maybeOpenCarplayAtStart() {
-        if (!P.carplayAtStart()) return;
+        if (P.carplayAuto() != PhoneWatch.AUTO_BOOT) return;
         long boot = bootId();
         if (boot == P.l(P.LAST_BOOT, -1)) return;
         P.put(P.LAST_BOOT, boot);
@@ -277,10 +280,11 @@ public class HomeActivity extends Activity {
         if (!P.drive()) { if (driving) exitDrive(); return; }
         float v = App.I.speed();
         if (!driving) {
-            if (v >= LocationTracker.START_KMH) enterDrive();
+            fastTicks = v >= LocationTracker.DRIVE_KMH ? fastTicks + 1 : 0;
+            if (fastTicks >= 2) { fastTicks = 0; enterDrive(); }
             return;
         }
-        if (v < 5f) {
+        if (v < LocationTracker.STOP_KMH) {
             long now = SystemClock.uptimeMillis();
             if (stopSince == 0) stopSince = now;
             else if (now - stopSince >= P.driveReturn() * 1000L) exitDrive();
@@ -326,6 +330,7 @@ public class HomeActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         resumed = true;
+        visible = true;
         App.I.doors.add(onDoors);
         App.I.vol.add(onVolume);
         lastMinute = -1;
@@ -346,6 +351,7 @@ public class HomeActivity extends Activity {
     }
 
     @Override protected void onPause() {
+        visible = false;
         resumed = false;
         h.removeCallbacks(tick);
         App.I.doors.remove(onDoors);
@@ -387,6 +393,17 @@ public class HomeActivity extends Activity {
             }
             showScreen(S_HOME);
             home().tab(1);
+        }
+        if (i.hasExtra("test_maj")) App.I.upd.check(this);
+        if (i.hasExtra("test_carte")) {
+            if (i.getIntExtra("test_carte", 0) == 1) App.I.mapdl.download(this);
+            else App.I.mapdl.cancel();
+        }
+        if (i.hasExtra("test_meteo")) { P.put(P.W_TIME, 0L); App.I.weather.maybeRefresh(this); }
+        if (i.hasExtra("test_etat")) {
+            android.util.Log.i("Test208", "etat maj=" + App.I.upd.status + " | carte=" + App.I.mapdl.status + " " + (App.I.mapdl.done >> 10)
+                    + " Ko | meteo=" + (App.I.weather.fresh() ? App.I.weather.temp() + "°" : "aucune") + " | heure_suspecte=" + Clock.suspicious()
+                    + " | ecart_internet_s=" + (Net.offset() / 1000) + " | tls=" + Net.lastTlsFix + " | conduite=" + driving);
         }
         if (i.hasExtra("test_info")) root.post(new Runnable() {
             @Override public void run() { testLog(root); }
@@ -439,7 +456,9 @@ public class HomeActivity extends Activity {
     // ---------- Actions communes ----------
     void openCarplay() {
         String pkg = App.I.apps.carplayPkg();
-        if (!App.I.apps.launch(this, pkg)) {
+        if (App.I.apps.launch(this, pkg)) {
+            if (LauncherService.I != null) LauncherService.I.carplayOpened();
+        } else {
             Toast.makeText(this, "Choisis l'application CarPlay (S-Play)", Toast.LENGTH_LONG).show();
             chooseApp("Application CarPlay", P.PKG_CARPLAY, null);
         }

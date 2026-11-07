@@ -196,8 +196,7 @@ final class ConnScreen extends Screen {
         else if (!gpsOn) set(2, "Désactivé", false, "—");
         else if (l.hasFix()) set(2, "Bon signal", true, l.accuracy > 0 ? "± " + Math.round(l.accuracy) + " m" : "OK");
         else set(2, "Recherche…", false, "—");
-        foot[2].setText(l.satsUsed > 0 || l.sats > 0 ? l.satsUsed + " satellites utilisés sur " + l.sats + " · heure "
-                + (Clock.fromGps() ? "à jour" : "en attente") : "Réglages de position");
+        foot[2].setText(l.satsUsed > 0 || l.sats > 0 ? l.satsUsed + " satellites utilisés sur " + l.sats : "Aucun satellite vu · Réglages de position");
         // Internet
         try {
             ConnectivityManager cm = (ConnectivityManager) a.getSystemService(Context.CONNECTIVITY_SERVICE);

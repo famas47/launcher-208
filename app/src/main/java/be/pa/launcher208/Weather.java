@@ -9,7 +9,6 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.Locale;
 
 /** Météo (Open-Meteo, gratuit et sans compte). Mise à jour toutes les 30 minutes si Internet est là. */
@@ -21,7 +20,11 @@ final class Weather {
     int temp() { return Math.round(P.f(P.W_TEMP, 0)); }
     int code() { return P.i(P.W_CODE, 3); }
     boolean isDay() { return P.b(P.W_DAY, true); }
-    boolean fresh() { return System.currentTimeMillis() - P.l(P.W_TIME, 0) < 3L * 3600000L; }
+    /** Moins de 3 h (si l'horloge de l'autoradio a reculé après un redémarrage, la météo est considérée ancienne). */
+    boolean fresh() {
+        long age = System.currentTimeMillis() - P.l(P.W_TIME, 0);
+        return age >= 0 && age < 3L * 3600000L;
+    }
 
     static boolean online(Context c) {
         try {
@@ -41,6 +44,7 @@ final class Weather {
         App.I.bg.execute(new Runnable() {
             @Override public void run() {
                 try {
+                    Net.syncTime(); // heure réelle (avis « autoradio pas à l'heure » et thème jour/nuit)
                     String u = String.format(Locale.US,
                             "https://api.open-meteo.com/v1/forecast?latitude=%.3f&longitude=%.3f&current=temperature_2m,weather_code,is_day&timezone=auto",
                             lat, lon);
@@ -61,10 +65,9 @@ final class Weather {
     }
 
     static String get(String url) throws Exception {
-        HttpURLConnection h = (HttpURLConnection) new URL(url).openConnection();
+        HttpURLConnection h = Net.open(url);
         h.setConnectTimeout(8000);
         h.setReadTimeout(8000);
-        h.setRequestProperty("User-Agent", "Launcher208");
         try {
             int code = h.getResponseCode();
             if (code != 200) throw new Exception("HTTP " + code);

@@ -22,7 +22,11 @@ final class P {
     static final String PKG_PHONE = "pkgPhone";
     static final String PKG_CAMERA = "pkgCamera";
     // CarPlay
-    static final String CARPLAY_AT_START = "carplayAtStart";
+    static final String CARPLAY_AT_START = "carplayAtStart";  // ancien réglage (oui/non), remplacé par CARPLAY_AUTO
+    static final String CARPLAY_AUTO = "carplayAuto";        // 0 jamais, 1 au démarrage, 2 quand l'iPhone se connecte
+    static final String BT_PHONE = "btPhone";                // adresse Bluetooth du téléphone choisi ("" = tout iPhone)
+    static final String BT_PHONE_NAME = "btPhoneName";
+    static final String CARPLAY_PKGS = "carplayPkgs";        // autres applis vues à l'écran quand CarPlay s'affiche
     static final String LAST_BOOT = "lastBoot";
     static final String BUBBLE = "bubble";
     static final String BUBBLE_X = "bubbleX";
@@ -65,6 +69,7 @@ final class P {
     static float f(String k, float d) { return sp.getFloat(k, d); }
     static boolean b(String k, boolean d) { return sp.getBoolean(k, d); }
     static String s(String k) { return sp.getString(k, ""); }
+    static String s(String k, String d) { return sp.getString(k, d); }
 
     static void put(String k, int v) { sp.edit().putInt(k, v).apply(); }
     static void put(String k, long v) { sp.edit().putLong(k, v).apply(); }
@@ -86,7 +91,8 @@ final class P {
     static boolean fluidMax() { return i(FLUID, 0) == 0; }
     static boolean officialIcons() { return i(ICONS, 0) == 1; }
     static boolean fullscreen() { return b(FULLSCREEN, true); }
-    static boolean carplayAtStart() { return b(CARPLAY_AT_START, true); }
+    /** Ouverture automatique de CarPlay : par défaut quand l'iPhone se connecte en Bluetooth. */
+    static int carplayAuto() { return i(CARPLAY_AUTO, PhoneWatch.AUTO_PHONE); }
     static boolean bubble() { return b(BUBBLE, true); }
     static boolean drive() { return b(DRIVE, true); }
     static int driveReturn() { return i(DRIVE_RETURN, 60); }
