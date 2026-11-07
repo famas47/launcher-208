@@ -239,6 +239,8 @@ log('  numéro du processus :', p0)
 shot('01-accueil', 3)
 mem_home = memory('accueil (72 vues préchargées)')
 
+pm_ = re.findall(r'mode conduite préparé en (\d+)', adb('logcat -d -s Test208:I'))
+log('  écran de conduite préparé en avance (hors écran) :', (pm_[-1] + ' ms') if pm_ else 'pas encore')
 phase('repos')
 gfx_reset()
 time.sleep(6)

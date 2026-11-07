@@ -96,7 +96,32 @@ public class HomeActivity extends Activity {
             }
             App.I.weather.maybeRefresh(HomeActivity.this);
             CarView.preload(HomeActivity.this);
+            h.postDelayed(prewarmDrive, 4000);
             App.mark("tâches d'après la première image lancées");
+        }
+    };
+
+    /**
+     * Quelques secondes après le démarrage, quand rien ne bouge : l'écran de conduite est préparé une fois
+     * hors de l'écran puis jeté. Les polices en grande taille et le code sont alors déjà chargés, et la
+     * toute première entrée en mode conduite est aussi fluide que les suivantes.
+     */
+    private final Runnable prewarmDrive = new Runnable() {
+        @Override public void run() {
+            if (driving || !resumed || isFinishing() || root.getWidth() == 0) return;
+            long t = SystemClock.uptimeMillis();
+            try {
+                DriveScreen d = new DriveScreen(HomeActivity.this);
+                View v = d.view();
+                d.refresh();
+                d.tick();
+                v.measure(View.MeasureSpec.makeMeasureSpec(root.getWidth(), View.MeasureSpec.EXACTLY),
+                        View.MeasureSpec.makeMeasureSpec(root.getHeight(), View.MeasureSpec.EXACTLY));
+                v.layout(0, 0, root.getWidth(), root.getHeight());
+                d.destroy();
+            } catch (Throwable ignored) {
+            }
+            App.mark("mode conduite préparé en " + (SystemClock.uptimeMillis() - t));
         }
     };
 
