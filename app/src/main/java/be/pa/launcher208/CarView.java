@@ -66,6 +66,7 @@ final class CarView extends View {
 
     CarView(Context c) {
         super(c);
+        setContentDescription("Ta 208 en 3D : glisse le doigt pour la faire tourner");
         if (Pal.carDim < 1f) {
             ColorMatrix m = new ColorMatrix();
             m.setScale(Pal.carDim, Pal.carDim, Pal.carDim, 1f);

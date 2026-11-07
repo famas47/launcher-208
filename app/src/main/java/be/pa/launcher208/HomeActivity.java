@@ -312,9 +312,39 @@ public class HomeActivity extends Activity {
 
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        if (BuildConfig.TEST_HOOKS && intent != null && intent.getExtras() != null) { testHook(intent); return; }
         // Bouton « accueil » pressé alors qu'on est déjà dans le launcher : retour à la page principale.
         if (!driving && screen != S_HOME) showScreen(S_HOME);
         else if (!driving && screens[S_HOME] != null) home().tab(0);
+    }
+
+    /** Ordres du test automatique sur émulateur (verifier.yml). N'existe pas dans l'APK installé dans la voiture. */
+    private void testHook(Intent i) {
+        if (i.hasExtra("test_theme")) { P.put(P.THEME, i.getIntExtra("test_theme", 0)); rebuildForSettings(); }
+        if (i.hasExtra("test_carplay")) P.put(P.PKG_CARPLAY, i.getStringExtra("test_carplay"));
+        if (i.hasExtra("test_ecran")) showScreen(i.getIntExtra("test_ecran", S_HOME));
+        if (i.hasExtra("test_onglet")) { showScreen(S_HOME); home().tab(i.getIntExtra("test_onglet", 0)); }
+        if (i.hasExtra("test_porte")) App.I.doors.set(i.getIntExtra("test_porte", 0), "test automatique");
+        if (i.hasExtra("test_vitesse")) {
+            App.I.simSpeed = i.getIntExtra("test_vitesse", -1);
+            if (App.I.simSpeed < 0) exitDrive();
+        }
+        if (i.hasExtra("test_info")) root.post(new Runnable() {
+            @Override public void run() { testLog(root); }
+        });
+    }
+
+    /** Le test automatique lit dans le journal où se trouve la voiture à l'écran (pour la faire tourner au doigt). */
+    private static void testLog(View v) {
+        if (v instanceof CarView && v.isShown()) {
+            int[] p = new int[2];
+            v.getLocationOnScreen(p);
+            android.util.Log.i("Test208", "voiture " + p[0] + " " + p[1] + " " + v.getWidth() + " " + v.getHeight());
+        }
+        if (v instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) v;
+            for (int k = 0; k < g.getChildCount(); k++) testLog(g.getChildAt(k));
+        }
     }
 
     @Override public void onBackPressed() {

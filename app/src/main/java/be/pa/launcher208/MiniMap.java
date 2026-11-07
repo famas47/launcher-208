@@ -29,10 +29,10 @@ final class MiniMap {
     private MapView mv;
     private TileCache cache;
     private MapFile mapFile;
-    private MapFile lookupFile;
+    private MapFile lookupFile; // utilisé seulement par le fil d'arrière-plan (App.bg, un seul fil)
     private boolean attached; // vrai quand la carte est confiée à la vue (elle la fermera)
     private double lastLookLat, lastLookLon;
-    private volatile boolean looking;
+    private volatile boolean looking, destroyed;
     String error = "";
     static volatile String lastError = ""; // pour le mode test
 
@@ -124,6 +124,7 @@ final class MiniMap {
         App.I.bg.execute(new Runnable() {
             @Override public void run() {
                 String best = "";
+                if (destroyed) { looking = false; return; } // mode conduite déjà quitté : on n'ouvre plus la carte
                 try {
                     if (lookupFile == null) lookupFile = new MapFile(f, "fr");
                     byte zoom = 16;
@@ -193,13 +194,15 @@ final class MiniMap {
         mv = null;
         cache = null;
         mapFile = null;
-        final MapFile lf = lookupFile;
-        lookupFile = null;
-        if (lf != null) {
-            App.I.bg.execute(new Runnable() {
-                @Override public void run() { try { lf.close(); } catch (Throwable ignored) { } }
-            });
-        }
+        // fermée sur le même fil que la recherche de rue, donc toujours après elle (jamais pendant)
+        destroyed = true;
+        App.I.bg.execute(new Runnable() {
+            @Override public void run() {
+                MapFile lf = lookupFile;
+                lookupFile = null;
+                if (lf != null) try { lf.close(); } catch (Throwable ignored) { }
+            }
+        });
         try { if (graphicsReady) AndroidGraphicFactory.clearResourceMemoryCache(); } catch (Throwable ignored) { }
     }
 }

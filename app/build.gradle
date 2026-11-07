@@ -19,6 +19,8 @@ android {
         versionName = "1." + runNumber
         buildConfigField 'String', 'GH_REPO', '"' + ghRepo + '"'
         buildConfigField 'long', 'BUILD_TIME', System.currentTimeMillis() + 'L'
+        // Pilotage par le test automatique sur émulateur (verifier.yml) ; toujours faux dans l'APK de la voiture.
+        buildConfigField 'boolean', 'TEST_HOOKS', System.getenv('TEST_HOOKS') == '1' ? 'true' : 'false'
         // Autoradio en 32 bits : pas de code natif, tout est en Java (fonctionne partout).
     }
 
