@@ -14,7 +14,7 @@ import org.mapsforge.map.android.view.MapView;
 
 /**
  * Mode conduite : grande vitesse, minimap (ou 3 tuiles dont la radio), gros boutons.
- * S'affiche dès 5 km/h et revient à l'accueil après l'arrêt (1 min par défaut).
+ * S'affiche dès 5 km/h (ou après un temps choisi depuis le contact) et revient à l'accueil après l'arrêt.
  */
 final class DriveScreen extends Screen {
     private TextView speed, clock, weather, street, tripKm, tripMin, mapStreet, mapTrip, radioName, radioLabel, volVal, mapMsg;
@@ -24,7 +24,7 @@ final class DriveScreen extends Screen {
     private Widgets.Marker marker;
     private ImageView playIcon;
     private boolean withMap, shown, mapPending;
-    private int lastSpeed = -1, radioPoll;
+    private int lastSpeed = Integer.MIN_VALUE, radioPoll; // -1 = vitesse inconnue (tiret)
 
     DriveScreen(HomeActivity a) { super(a); }
 
@@ -133,6 +133,19 @@ final class DriveScreen extends Screen {
         pill.addView(U.icon(a, R.drawable.ic_steer, 20, fg));
         pill.addView(U.tv(a, "Mode conduite", 15, fg, 600), U.lpm(U.WR, U.WR, 8, 0, 0, 0));
         t.addView(pill, U.lp(U.WR, U.s(40)));
+        // Sortie à la main (utile si le mode conduite s'est ouvert avec le minuteur et que le GPS ne capte pas)
+        LinearLayout home = U.row(a);
+        home.setGravity(Gravity.CENTER_VERTICAL);
+        home.setBackground(U.rr(Pal.card, 20));
+        U.shadow(home, 3);
+        U.pad(home, 10, 0, 16, 0);
+        home.addView(U.icon(a, R.drawable.ic_home, 20, Pal.text));
+        home.addView(U.tv(a, "Accueil", 15, Pal.text, 600), U.lpm(U.WR, U.WR, 8, 0, 0, 0));
+        U.click(home, 20, new Runnable() {
+            @Override public void run() { a.leaveDriveByHand(); }
+        });
+        home.setContentDescription("Quitter le mode conduite");
+        t.addView(home, U.lpm(U.WR, U.s(40), 10, 0, 0, 0));
         t.addView(U.flex(a));
         clock = U.tv(a, "", 30, Pal.text, 400);
         t.addView(clock);
@@ -357,10 +370,11 @@ final class DriveScreen extends Screen {
 
     @Override void tick() {
         float v = App.I.speed();
-        int s = Math.round(v);
+        // sans GPS on affiche un tiret plutôt qu'un « 0 » qui ferait croire que la voiture est à l'arrêt
+        int s = App.I.speedKnown() ? Math.round(v) : -1;
         if (s != lastSpeed) {
             lastSpeed = s;
-            speed.setText(String.valueOf(s));
+            speed.setText(s < 0 ? "–" : String.valueOf(s));
         }
         LocationTracker l = App.I.loc;
         if (mini != null) {
@@ -406,7 +420,7 @@ final class DriveScreen extends Screen {
         Weather w = App.I.weather;
         weather.setText(w.has() && w.fresh() ? w.temp() + "°" : "");
         volumeChanged();
-        lastSpeed = -1;
+        lastSpeed = Integer.MIN_VALUE;
         tick();
     }
 

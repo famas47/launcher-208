@@ -62,6 +62,7 @@ public class LauncherService extends Service {
                     bubble.hide();
                 } else if (Intent.ACTION_SCREEN_ON.equals(a)) {
                     screenOn = true;
+                    App.I.contactOn(); // réveil de l'autoradio = contact remis
                     App.I.vol.capAtStart();
                     App.I.loc.start();
                 }

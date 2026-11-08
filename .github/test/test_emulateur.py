@@ -383,6 +383,23 @@ hook(vitesse=-1)
 time.sleep(1)
 log('  verdict seuil :', 'OK' if 'conduite=false' in r4 and 'conduite=true' in r6 else 'ANORMAL')
 
+# ---------- Mode conduite après le contact (réglage « Activer après le contact ») ----------
+log('\n--- Mode conduite après le contact (réglage 2 min, GPS sans vitesse) ---')
+phase('minuteur')
+hook(conduite_apres=2, retour=30)
+hook(contact=60)
+m1 = etat('contact mis il y a 1 min (ne doit PAS passer en conduite)', 3)
+hook(contact=125)
+m2 = etat('contact mis il y a 2 min 05 (doit passer en conduite)', 3)
+shot('26-conduite-minuteur', 0.5)
+m3 = etat('40 s plus tard, toujours sans vitesse (doit RESTER en conduite)', 40)
+hook(quitter=1)
+m4 = etat('bouton « Accueil » touché (doit revenir à l\'accueil)', 2)
+m5 = etat('5 s plus tard (ne doit PAS revenir tout seul)', 5)
+hook(conduite_apres=0, retour=60)
+ok = all('conduite=false' in m for m in (m1, m4, m5)) and all('conduite=true' in m for m in (m2, m3))
+log('  verdict minuteur :', 'OK' if ok else 'ANORMAL')
+
 # ---------- Nuit ----------
 log('\n--- Mode nuit ---')
 phase('nuit')

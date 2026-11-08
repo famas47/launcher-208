@@ -35,10 +35,18 @@ public class App extends Application {
     Updater upd;
     volatile float simSpeed = -1; // mode test : vitesse simulée (-1 = non)
 
+    // Contact mis : allumage de l'autoradio (ou réveil après sa veille). SystemClock.elapsedRealtime().
+    volatile long contactAt;
+    volatile boolean droveThisContact; // le mode conduite a déjà été affiché depuis ce contact
+
     @Override public void onCreate() {
         super.onCreate();
         I = this;
         processStart = Build.VERSION.SDK_INT >= 24 ? Process.getStartUptimeMillis() : SystemClock.uptimeMillis();
+        // Lancé dans les 10 minutes après l'allumage : on compte depuis l'allumage. Sinon (appli relancée
+        // pendant que l'autoradio tournait déjà, ou au réveil), on compte depuis maintenant.
+        long up = SystemClock.elapsedRealtime();
+        contactAt = up < 10L * 60000L ? 0 : up;
         P.init(this);
         U.init(this);
         trips = new TripStore(this);
@@ -61,6 +69,17 @@ public class App extends Application {
             android.util.Log.i("Test208", "temps " + what + " " + (SystemClock.uptimeMillis() - processStart) + " ms");
         }
     }
+
+    /** L'autoradio se réveille (contact remis) : nouveau départ pour « Activer après le contact ». */
+    void contactOn() {
+        contactAt = SystemClock.elapsedRealtime();
+        droveThisContact = false;
+    }
+
+    long sinceContact() { return SystemClock.elapsedRealtime() - contactAt; }
+
+    /** Une vitesse est disponible (GPS qui capte, ou vitesse simulée). */
+    boolean speedKnown() { return simSpeed >= 0 || loc.hasFix(); }
 
     /** Vitesse utilisée par l'écran (GPS, ou simulée en mode test). */
     float speed() {

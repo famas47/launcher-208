@@ -36,8 +36,7 @@ public class HomeActivity extends Activity {
     private int screen = S_HOME;
     private DriveScreen drive;
     private boolean driving, resumed, nightNow;
-    private long stopSince;
-    private int fastTicks;
+    private final DriveRule rule = new DriveRule();
     private int lastMinute = -1;
     private boolean firstFrameDone;
     private static java.lang.ref.WeakReference<HomeActivity> live;
@@ -250,7 +249,7 @@ public class HomeActivity extends Activity {
     void enterDrive() {
         if (driving) return;
         driving = true;
-        stopSince = 0;
+        App.I.droveThisContact = true;
         App.mark("conduite : début");
         if (drive == null) drive = new DriveScreen(this);
         View v = drive.view();
@@ -276,20 +275,22 @@ public class HomeActivity extends Activity {
 
     boolean driving() { return driving; }
 
+    /** Bouton « Accueil » du mode conduite. */
+    void leaveDriveByHand() {
+        rule.leftByHand();
+        exitDrive();
+    }
+
     private void driveLogic() {
         if (!P.drive()) { if (driving) exitDrive(); return; }
-        float v = App.I.speed();
-        if (!driving) {
-            fastTicks = v >= LocationTracker.DRIVE_KMH ? fastTicks + 1 : 0;
-            if (fastTicks >= 2) { fastTicks = 0; enterDrive(); }
-            return;
-        }
-        if (v < LocationTracker.STOP_KMH) {
-            long now = SystemClock.uptimeMillis();
-            if (stopSince == 0) stopSince = now;
-            else if (now - stopSince >= P.driveReturn() * 1000L) exitDrive();
-        } else {
-            stopSince = 0;
+        int r = rule.tick(driving, App.I.speed(), SystemClock.uptimeMillis(), App.I.sinceContact(),
+                P.driveAfter(), App.I.droveThisContact, P.driveReturn());
+        if (r == DriveRule.ENTER_SPEED || r == DriveRule.ENTER_TIMER) {
+            rule.entered(r == DriveRule.ENTER_SPEED);
+            App.mark(r == DriveRule.ENTER_SPEED ? "conduite : vitesse" : "conduite : minuteur après le contact");
+            enterDrive();
+        } else if (r == DriveRule.EXIT) {
+            exitDrive();
         }
     }
 
@@ -394,6 +395,13 @@ public class HomeActivity extends Activity {
             showScreen(S_HOME);
             home().tab(1);
         }
+        if (i.hasExtra("test_conduite_apres")) P.put(P.DRIVE_AFTER, i.getIntExtra("test_conduite_apres", 0));
+        if (i.hasExtra("test_retour")) P.put(P.DRIVE_RETURN, i.getIntExtra("test_retour", 60));
+        if (i.hasExtra("test_contact")) { // contact mis il y a N secondes (nouveau démarrage)
+            App.I.contactOn();
+            App.I.contactAt -= i.getIntExtra("test_contact", 0) * 1000L;
+        }
+        if (i.hasExtra("test_quitter")) leaveDriveByHand();
         if (i.hasExtra("test_maj")) App.I.upd.check(this);
         if (i.hasExtra("test_carte")) {
             if (i.getIntExtra("test_carte", 0) == 1) App.I.mapdl.download(this);
@@ -403,7 +411,8 @@ public class HomeActivity extends Activity {
         if (i.hasExtra("test_etat")) {
             android.util.Log.i("Test208", "etat maj=" + App.I.upd.status + " | carte=" + App.I.mapdl.status + " " + (App.I.mapdl.done >> 10)
                     + " Ko | meteo=" + (App.I.weather.fresh() ? App.I.weather.temp() + "°" : "aucune") + " | heure_suspecte=" + Clock.suspicious()
-                    + " | ecart_internet_s=" + (Net.offset() / 1000) + " | tls=" + Net.lastTlsFix + " | conduite=" + driving);
+                    + " | ecart_internet_s=" + (Net.offset() / 1000) + " | tls=" + Net.lastTlsFix + " | conduite=" + driving + " | contact_s=" + (App.I.sinceContact() / 1000)
+                    + " | apres_min=" + P.driveAfter() + " | attente_arret=" + rule.waitingAfterHand());
         }
         if (i.hasExtra("test_info")) root.post(new Runnable() {
             @Override public void run() { testLog(root); }

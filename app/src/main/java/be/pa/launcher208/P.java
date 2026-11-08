@@ -34,6 +34,7 @@ final class P {
     // Mode conduite
     static final String DRIVE = "drive";
     static final String DRIVE_RETURN = "driveReturn";  // secondes
+    static final String DRIVE_AFTER = "driveAfter";    // minutes après le contact (0 = non)
     static final String MINIMAP = "minimap";
     // Voiture
     static final String ODO_BASE = "odoBase";          // km saisis
@@ -96,6 +97,8 @@ final class P {
     static boolean bubble() { return b(BUBBLE, true); }
     static boolean drive() { return b(DRIVE, true); }
     static int driveReturn() { return i(DRIVE_RETURN, 60); }
+    /** Mode conduite aussi N minutes après le contact, même sans vitesse (0 = seulement la vitesse). */
+    static int driveAfter() { return i(DRIVE_AFTER, 0); }
     static boolean minimap() { return b(MINIMAP, true); }
     static int volStartMax() { return i(VOL_START_MAX, 15); }
 }

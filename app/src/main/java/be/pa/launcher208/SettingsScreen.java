@@ -8,7 +8,7 @@ import android.widget.TextView;
 
 /** Réglages du launcher (les réglages de l'autoradio restent dans ses écrans d'origine). */
 final class SettingsScreen extends Screen {
-    private TextView phoneVal, cpApp, radioApp, musicApp, phoneApp, camApp, retVal, odoVal, volVal, clockVal, nightRange, mapStatus, updStatus, version;
+    private TextView phoneVal, cpApp, radioApp, musicApp, phoneApp, camApp, retVal, afterVal, odoVal, volVal, clockVal, nightRange, mapStatus, updStatus, version;
     private TextView mapBtn, updBtn;
     private View nightRangeRow;
 
@@ -143,6 +143,16 @@ final class SettingsScreen extends Screen {
         s = section(c2, "Mode conduite");
         add(s, row("Mode conduite", "S'active dès " + Math.round(LocationTracker.DRIVE_KMH) + " km/h", new Widgets.Toggle(a, P.drive(), new Widgets.BoolCb() {
             @Override public void on(boolean v) { P.put(P.DRIVE, v); }
+        })), true);
+        afterVal = U.tv(a, "", 15, Pal.text, 600);
+        add(s, row("Activer après le contact", "Même si la vitesse n'arrive pas", valueBtn(afterVal, new Runnable() {
+            @Override public void run() {
+                int[] opts = {0, 1, 2, 3, 5, 10};
+                int cur = P.driveAfter(), next = opts[1];
+                for (int i = 0; i < opts.length; i++) if (opts[i] == cur) next = opts[(i + 1) % opts.length];
+                P.put(P.DRIVE_AFTER, next);
+                refresh();
+            }
         })), true);
         retVal = U.tv(a, "", 15, Pal.text, 600);
         add(s, row("Retour à l'accueil", "Après un arrêt de", valueBtn(retVal, new Runnable() {
@@ -348,6 +358,8 @@ final class SettingsScreen extends Screen {
         camApp.setText(appName(P.PKG_CAMERA, AppsRepo.CAMERA));
         int r = P.driveReturn();
         retVal.setText(r < 60 ? r + " s" : (r / 60) + " min");
+        int am = P.driveAfter();
+        afterVal.setText(am == 0 ? "Non" : am + " min");
         long km = LocationTracker.odometer();
         odoVal.setText(km > 0 ? Fmt.big(km) + " km" : "À saisir");
         volVal.setText("Max " + P.volStartMax());

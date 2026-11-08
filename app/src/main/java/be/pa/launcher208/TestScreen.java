@@ -248,6 +248,13 @@ final class TestScreen extends Screen {
             }
         }));
         s.addView(U.line(a));
+        check(s, "Contact mis", new Status() {
+            @Override public String get() {
+                int am = P.driveAfter();
+                return "il y a " + (App.I.sinceContact() / 60000L) + " min · activer après le contact : "
+                        + (am == 0 ? "non" : am + " min") + (App.I.droveThisContact ? " · mode conduite déjà affiché" : "");
+            }
+        }, null, null);
         return outer;
     }
 
