@@ -1,6 +1,7 @@
 package be.pa.launcher208;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
@@ -98,7 +99,11 @@ final class PhoneWatch {
         if (ok && LauncherService.I != null) LauncherService.I.carplayOpened();
     }
 
-    /** Appareils jumelés visibles par Android (pour le choix du téléphone et le mode test). */
+    /**
+     * Appareils jumelés visibles par Android (pour le choix du téléphone et le mode test).
+     * Sans l'autorisation « Appareils à proximité », Android refuse (SecurityException) : liste vide.
+     */
+    @SuppressLint("MissingPermission")
     static ArrayList<String[]> bonded() {
         ArrayList<String[]> out = new ArrayList<>();
         try {

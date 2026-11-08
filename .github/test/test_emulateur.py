@@ -397,7 +397,12 @@ hook(quitter=1)
 m4 = etat('bouton « Accueil » touché (doit revenir à l\'accueil)', 2)
 m5 = etat('5 s plus tard (ne doit PAS revenir tout seul)', 5)
 hook(conduite_apres=0, retour=60)
-ok = all('conduite=false' in m for m in (m1, m4, m5)) and all('conduite=true' in m for m in (m2, m3))
+hook(contact=0)
+hook(vitesse=6)
+m6 = etat('nouveau contact puis 6 km/h (doit passer en conduite)', 4)
+hook(vitesse=-1)
+time.sleep(1)
+ok = all('conduite=false' in m for m in (m1, m4, m5)) and all('conduite=true' in m for m in (m2, m3, m6))
 log('  verdict minuteur :', 'OK' if ok else 'ANORMAL')
 
 # ---------- Nuit ----------

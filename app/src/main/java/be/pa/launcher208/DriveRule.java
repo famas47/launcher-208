@@ -10,7 +10,8 @@ package be.pa.launcher208;
  * Sortie :
  *  - après un arrêt (vitesse sous 3 km/h) de la durée réglée, mais seulement si la voiture a vraiment
  *    roulé depuis l'entrée. Entré par le minuteur sans vitesse : on reste jusqu'au bouton « Accueil ».
- *  - bouton « Accueil » : on sort, et on ne revient pas tout seul avant le prochain arrêt.
+ *  - bouton « Accueil » : on sort, et on ne revient pas tout seul avant le prochain arrêt
+ *    (ou le prochain contact).
  *
  * Aucune dépendance à Android : testé dans LogicTest.
  */
@@ -50,6 +51,8 @@ final class DriveRule {
      */
     int tick(boolean driving, float kmh, long now, long sinceContactMs, int afterMin, boolean alreadyThisContact, int returnSec) {
         if (!driving) {
+            // contact remis depuis (rien d'affiché pour ce contact) : la sortie à la main ne compte plus
+            if (manualOut && !alreadyThisContact) manualOut = false;
             if (manualOut) {
                 // on attend un vrai arrêt avant de se remettre à surveiller la vitesse
                 if (kmh < LocationTracker.STOP_KMH) {
