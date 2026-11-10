@@ -375,7 +375,7 @@ hook(onglet=0)
 # ---------- Seuil du mode conduite ----------
 log('\n--- Seuil du mode conduite (réglage par défaut 1 km/h, puis 5 km/h) ---')
 phase('seuil')
-d0 = etat('réglages au départ (kmh doit valoir 1, carplay_auto 1 = au démarrage)', 1)
+d0 = etat('réglages au départ (kmh doit valoir 1)', 1)
 hook(vitesse=0)
 r0 = etat('à 0 km/h pendant 5 s (ne doit PAS passer en conduite)', 5)
 hook(vitesse=1)
@@ -390,9 +390,26 @@ r6 = etat('réglage 5 km/h : à 6 km/h pendant 4 s (doit passer en conduite)', 4
 hook(vitesse=-1)
 hook(kmh=1)
 time.sleep(1)
-ok = ('kmh=1' in d0 and 'carplay_auto=1' in d0 and 'conduite=false' in r0 and 'conduite=true' in r1
+ok = ('kmh=1' in d0 and 'conduite=false' in r0 and 'conduite=true' in r1
       and 'conduite=false' in r4 and 'conduite=true' in r6)
 log('  verdict seuil :', 'OK' if ok else 'ANORMAL')
+
+# ---------- Bluetooth : le launcher le rallume (comme l'écran d'accueil d'origine) ----------
+log('\n--- Bluetooth : coupé puis rallumé par le launcher ---')
+phase('bluetooth')
+bt0 = etat('au départ (carplay_auto doit valoir 2 = iPhone)', 0.5)
+if 'bt=absent' in bt0:
+    log('  pas de Bluetooth sur cet émulateur : test sauté')
+    log('  verdict bluetooth :', 'OK' if 'carplay_auto=2' in bt0 else 'ANORMAL')
+else:
+    adb('shell cmd bluetooth_manager disable')
+    adb('shell svc bluetooth disable')
+    time.sleep(5)
+    bt1 = etat('Bluetooth coupé (doit être off)', 0.5)
+    hook(bt=1)
+    bt2 = etat('le launcher le rallume (doit être on)', 8)
+    ok = 'carplay_auto=2' in bt0 and 'bt=off' in bt1 and 'bt=on' in bt2
+    log('  verdict bluetooth :', 'OK' if ok else 'ANORMAL')
 
 # ---------- Volume : les 3 façons de régler le son ----------
 log('\n--- Volume : les 3 façons (sur l\'émulateur, chacune doit au moins changer le volume musique) ---')

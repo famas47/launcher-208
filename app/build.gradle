@@ -14,7 +14,9 @@ android {
     defaultConfig {
         applicationId = 'be.pa.launcher208'
         minSdk = 23
-        targetSdk = 34
+        // Android 12 (32) : le dernier niveau où Android laisse une appli allumer le Bluetooth toute seule
+        // (comme le faisait l'écran d'accueil d'origine). L'appli marche quand même sur Android 13, 14 et 15.
+        targetSdk = 32
         versionCode = runNumber
         versionName = "1." + runNumber
         buildConfigField 'String', 'GH_REPO', '"' + ghRepo + '"'

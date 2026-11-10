@@ -4,6 +4,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothProfile;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -37,7 +38,7 @@ final class PhoneWatch {
         @Override public void onReceive(Context ctx, Intent i) {
             if (!BluetoothDevice.ACTION_ACL_CONNECTED.equals(i.getAction())) return;
             BluetoothDevice d = i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-            if (d != null) onConnected(d);
+            if (d != null) onConnected(c, d.getAddress(), name(d));
         }
     };
     private boolean registered;
@@ -80,12 +81,11 @@ final class PhoneWatch {
         return name != null && name.toLowerCase(Locale.ROOT).contains("iphone");
     }
 
-    private void onConnected(BluetoothDevice d) {
-        String n = name(d);
+    static void onConnected(Context c, String address, String n) {
         lastSeen = n;
         lastSeenAt = SystemClock.elapsedRealtime();
         if (P.carplayAuto() != AUTO_PHONE) { lastAction = "connexion vue (ouverture automatique désactivée)"; return; }
-        if (!isMyPhone(d.getAddress(), n)) { lastAction = "« " + n + " » n'est pas le téléphone choisi"; return; }
+        if (!isMyPhone(address, n)) { lastAction = "« " + n + " » n'est pas le téléphone choisi"; return; }
         // seulement si l'écran d'accueil est devant (on n'interrompt pas la radio ou une autre appli),
         // et pas plus d'une fois toutes les 2 minutes (le Bluetooth se reconnecte parfois)
         if (!HomeActivity.visible) { lastAction = "iPhone vu, mais une autre appli est à l'écran : rien ouvert"; return; }
@@ -97,6 +97,40 @@ final class PhoneWatch {
         boolean ok = App.I.apps.launch(c, pkg);
         lastAction = ok ? "iPhone connecté : CarPlay ouvert" : "iPhone connecté, mais CarPlay n'a pas pu s'ouvrir";
         if (ok && LauncherService.I != null) LauncherService.I.carplayOpened();
+    }
+
+    /** Android connaît ton iPhone (jumelé avec le Bluetooth d'Android) : il pourra voir sa connexion. */
+    static boolean knowsMyPhone() {
+        for (String[] d : bonded()) if (isMyPhone(d[0], d[1])) return true;
+        return false;
+    }
+
+    /**
+     * L'iPhone s'est peut-être connecté avant que le launcher soit prêt (pendant le démarrage) :
+     * on regarde les téléphones déjà connectés (appels et musique Bluetooth).
+     */
+    @SuppressLint("MissingPermission")
+    static void checkConnected(Context ctx) {
+        if (!permitted(ctx)) return;
+        final Context c = ctx.getApplicationContext();
+        try {
+            final BluetoothAdapter ad = BluetoothAdapter.getDefaultAdapter();
+            if (ad == null || !ad.isEnabled()) return;
+            for (int profile : new int[]{BluetoothProfile.HEADSET, BluetoothProfile.A2DP}) {
+                ad.getProfileProxy(c, new BluetoothProfile.ServiceListener() {
+                    @Override public void onServiceConnected(int p, BluetoothProfile proxy) {
+                        try {
+                            for (BluetoothDevice d : proxy.getConnectedDevices()) onConnected(c, d.getAddress(), name(d));
+                        } catch (Exception ignored) {
+                        } finally {
+                            try { ad.closeProfileProxy(p, proxy); } catch (Exception ignored) { }
+                        }
+                    }
+
+                    @Override public void onServiceDisconnected(int p) { }
+                }, profile);
+            }
+        } catch (Exception ignored) { }
     }
 
     /**

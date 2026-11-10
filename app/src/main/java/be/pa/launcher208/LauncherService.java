@@ -63,6 +63,12 @@ public class LauncherService extends Service {
                 } else if (Intent.ACTION_SCREEN_ON.equals(a)) {
                     screenOn = true;
                     App.I.contactOn(); // réveil de l'autoradio = contact remis
+                    // réveil après la veille : le Bluetooth a pu être coupé, on le rallume et on cherche l'iPhone
+                    if (P.btAuto() && P.carplayAuto() == PhoneWatch.AUTO_PHONE && BtPower.ensureOn(LauncherService.this) <= BtPower.TURNING_ON) {
+                        h.postDelayed(new Runnable() {
+                            @Override public void run() { PhoneWatch.checkConnected(LauncherService.this); }
+                        }, 8000);
+                    }
                     App.I.vol.capAtStart();
                     App.I.loc.start();
                 }

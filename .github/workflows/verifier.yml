@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api: [ 29, 34 ]   # Android 10 (fréquent sur les autoradios) et Android 14
+        api: [ 29, 34, 35 ]   # Android 10 (fréquent sur les autoradios), Android 14 et Android 15
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v7.0.1

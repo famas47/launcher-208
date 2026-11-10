@@ -137,13 +137,50 @@ public class HomeActivity extends Activity {
     };
 
     private void maybeOpenCarplayAtStart() {
-        if (P.carplayAuto() != PhoneWatch.AUTO_BOOT) return;
+        int mode = P.carplayAuto();
+        if (mode == PhoneWatch.AUTO_NEVER) return;
         long boot = bootId();
         if (boot == P.l(P.LAST_BOOT, -1)) return;
         P.put(P.LAST_BOOT, boot);
         if (SystemClock.elapsedRealtime() > 10L * 60000L) return; // seulement juste après l'allumage
+        if (mode == PhoneWatch.AUTO_PHONE) { waitForPhoneAtStart(); return; }
+        openCarplayAtStart("ouvert au démarrage");
+    }
+
+    /**
+     * Comme le logiciel d'origine : le Bluetooth s'allume, puis CarPlay s'ouvre quand ton iPhone se connecte.
+     * Si Android ne peut pas allumer le Bluetooth ou ne connaît pas ton iPhone, CarPlay est ouvert tout de suite,
+     * comme avant (c'est alors S-Play qui allume le Bluetooth).
+     */
+    private void waitForPhoneAtStart() {
+        if (P.btAuto()) BtPower.ensureOn(this);
+        App.I.main.postDelayed(new Runnable() {
+            @Override public void run() {
+                if (isFinishing() || isDestroyed()) return;
+                if (!BtPower.isOn(HomeActivity.this)) {
+                    openCarplayAtStart("Bluetooth éteint (" + BtPower.last + ") : CarPlay ouvert comme avant");
+                } else if (!PhoneWatch.knowsMyPhone()) {
+                    openCarplayAtStart("Android ne connaît pas ton iPhone : CarPlay ouvert comme avant");
+                } else {
+                    PhoneWatch.lastAction = "Bluetooth allumé : en attente de ton iPhone";
+                    PhoneWatch.checkConnected(HomeActivity.this);
+                    // une deuxième fois un peu plus tard (l'iPhone met parfois du temps à se connecter)
+                    App.I.main.postDelayed(new Runnable() {
+                        @Override public void run() { PhoneWatch.checkConnected(App.I); }
+                    }, 20000);
+                }
+            }
+        }, 8000);
+    }
+
+    private void openCarplayAtStart(String why) {
+        if (!visible) { PhoneWatch.lastAction = why + " (annulé : une autre appli est à l'écran)"; return; }
         String pkg = App.I.apps.carplayPkg();
-        if (!pkg.isEmpty()) App.I.apps.launch(this, pkg);
+        if (pkg.isEmpty()) return;
+        if (App.I.apps.launch(this, pkg)) {
+            PhoneWatch.lastAction = why;
+            if (LauncherService.I != null) LauncherService.I.carplayOpened();
+        }
     }
 
     private long bootId() {
@@ -398,6 +435,7 @@ public class HomeActivity extends Activity {
             showScreen(S_HOME);
             home().tab(1);
         }
+        if (i.hasExtra("test_bt")) BtPower.ensureOn(this);
         if (i.hasExtra("test_kmh")) P.put(P.DRIVE_KMH, i.getIntExtra("test_kmh", 1));
         if (i.hasExtra("test_vol_methode")) P.put(P.VOL_METHOD, i.getIntExtra("test_vol_methode", 0));
         if (i.hasExtra("test_vol_pas")) App.I.vol.step(i.getIntExtra("test_vol_pas", 1));
@@ -420,7 +458,9 @@ public class HomeActivity extends Activity {
                     + " | ecart_internet_s=" + (Net.offset() / 1000) + " | tls=" + Net.lastTlsFix + " | conduite=" + driving + " | contact_s=" + (App.I.sinceContact() / 1000)
                     + " | apres_min=" + P.driveAfter() + " | attente_arret=" + rule.waitingAfterHand()
                     + " | kmh=" + P.driveKmh() + " | vol=" + App.I.vol.get() + "/" + App.I.vol.max() + " methode=" + P.volMethod()
-                    + " fixe=" + App.I.vol.fixed() + " err=" + App.I.vol.lastError + " | carplay_auto=" + P.carplayAuto());
+                    + " fixe=" + App.I.vol.fixed() + " err=" + App.I.vol.lastError + " | carplay_auto=" + P.carplayAuto()
+                    + " | bt=" + (BtPower.present(this) ? (BtPower.isOn(this) ? "on" : "off") : "absent") + " btlast=" + BtPower.last
+                    + " | cp_action=" + PhoneWatch.lastAction);
         }
         if (i.hasExtra("test_info")) root.post(new Runnable() {
             @Override public void run() { testLog(root); }

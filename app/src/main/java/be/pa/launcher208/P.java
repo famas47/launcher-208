@@ -65,13 +65,19 @@ final class P {
     // Son
     static final String VOL_METHOD = "volMethod";      // façon de changer le volume (Volume.M_*)
     // Changements de réglages faits une seule fois lors d'une mise à jour
-    private static final String MIGR_V8 = "migrV8";
+    private static final String MIGR_V8 = "migrV8", MIGR_V9 = "migrV9";
+    static final String BT_AUTO = "btAuto";            // allumer le Bluetooth au démarrage
 
     static void init(Context c) {
         sp = c.getSharedPreferences("cfg", Context.MODE_PRIVATE);
         if (!sp.getBoolean(MIGR_V8, false)) {
             // v8 : CarPlay de nouveau ouvert au démarrage, comme avant la v6 (c'est ce qui rallume le Bluetooth)
             sp.edit().putInt(CARPLAY_AUTO, PhoneWatch.AUTO_BOOT).putBoolean(MIGR_V8, true).apply();
+        }
+        if (!sp.getBoolean(MIGR_V9, false)) {
+            // v9 : comme le logiciel d'origine. Le launcher allume le Bluetooth et ouvre CarPlay quand l'iPhone
+            // se connecte (et l'ouvre au démarrage comme en v8 si le Bluetooth ne peut pas s'allumer).
+            sp.edit().putInt(CARPLAY_AUTO, PhoneWatch.AUTO_PHONE).putBoolean(MIGR_V9, true).apply();
         }
     }
 
@@ -102,8 +108,9 @@ final class P {
     static boolean fluidMax() { return i(FLUID, 0) == 0; }
     static boolean officialIcons() { return i(ICONS, 0) == 1; }
     static boolean fullscreen() { return b(FULLSCREEN, true); }
-    /** Ouverture automatique de CarPlay : par défaut au démarrage (comme l'autoradio l'a toujours fait). */
-    static int carplayAuto() { return i(CARPLAY_AUTO, PhoneWatch.AUTO_BOOT); }
+    /** Ouverture automatique de CarPlay : par défaut quand l'iPhone se connecte (comme le logiciel d'origine). */
+    static int carplayAuto() { return i(CARPLAY_AUTO, PhoneWatch.AUTO_PHONE); }
+    static boolean btAuto() { return b(BT_AUTO, true); }
     static boolean bubble() { return b(BUBBLE, true); }
     static boolean drive() { return b(DRIVE, true); }
     static int driveReturn() { return i(DRIVE_RETURN, 60); }

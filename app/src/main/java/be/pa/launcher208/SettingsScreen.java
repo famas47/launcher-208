@@ -77,7 +77,7 @@ final class SettingsScreen extends Screen {
         s = section(c1, "CarPlay");
         cpApp = U.tv(a, "", 14, Pal.text2, 500);
         add(s, row("Application CarPlay", "Celle qui affiche CarPlay", valueBtn(cpApp, chooser("Application CarPlay", P.PKG_CARPLAY))), true);
-        add(s, row("Ouvrir CarPlay tout seul", "« Au démarrage » conseillé : comme avant",
+        add(s, row("Ouvrir CarPlay tout seul", "« iPhone » : comme le logiciel d'origine",
                 Widgets.seg(a, new String[]{"Non", "Au démarrage", "iPhone"}, P.carplayAuto(), new Widgets.IntCb() {
             @Override public void on(int v) {
                 P.put(P.CARPLAY_AUTO, v);
@@ -106,6 +106,9 @@ final class SettingsScreen extends Screen {
         bubbleRight.addView(new Widgets.Toggle(a, P.bubble(), new Widgets.BoolCb() {
             @Override public void on(boolean v) { P.put(P.BUBBLE, v); }
         }));
+        add(s, row("Allumer le Bluetooth", "Au démarrage, pour que ton iPhone se connecte", new Widgets.Toggle(a, P.btAuto(), new Widgets.BoolCb() {
+            @Override public void on(boolean v) { P.put(P.BT_AUTO, v); }
+        })), true);
         add(s, row("Bulle volume", "Sur CarPlay, à glisser où tu veux", bubbleRight), false);
 
         s = section(c1, "Volume");

@@ -89,7 +89,7 @@ final class TestScreen extends Screen {
         }, "Autoriser", new Runnable() {
             @Override public void run() { open("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS", false); }
         });
-        check(s, "Voir ton iPhone en Bluetooth", new Status() {
+        check(s, "Bluetooth : voir ton iPhone et l'allumer", new Status() {
             @Override public String get() { return PhoneWatch.permitted(a) ? "OK" : "Non autorisé (« Appareils à proximité »)"; }
         }, "Autoriser", new Runnable() {
             @Override public void run() { a.requestPerm(android.Manifest.permission.BLUETOOTH_CONNECT, HomeActivity.REQ_BT); }
@@ -171,14 +171,13 @@ final class TestScreen extends Screen {
         }, null, null, 6);
         check(s, "Bluetooth d'Android", new Status() {
             @Override public String get() {
-                try {
-                    android.bluetooth.BluetoothAdapter ad = android.bluetooth.BluetoothAdapter.getDefaultAdapter();
-                    return ad == null ? "absent (l'autoradio utilise sa propre puce)" : ad.isEnabled() ? "allumé" : "éteint";
-                } catch (Exception e) {
-                    return "?";
-                }
+                if (!BtPower.present(a)) return "absent (l'autoradio utilise sa propre puce)";
+                return (BtPower.isOn(a) ? "allumé" : "éteint") + " · au démarrage : " + BtPower.last
+                        + " · iPhone connu d'Android : " + (PhoneWatch.knowsMyPhone() ? "oui" : "non");
             }
-        }, null, null);
+        }, "Allumer", new Runnable() {
+            @Override public void run() { BtPower.ensureOn(a); refreshNow(); }
+        });
 
         // ----- Colonne 2 -----
         s = section(c2, "Radio");
