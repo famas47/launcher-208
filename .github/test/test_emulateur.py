@@ -394,14 +394,14 @@ ok = ('kmh=1' in d0 and 'carplay_auto=1' in d0 and 'conduite=false' in r0 and 'c
       and 'conduite=false' in r4 and 'conduite=true' in r6)
 log('  verdict seuil :', 'OK' if ok else 'ANORMAL')
 
-# ---------- Volume : les 4 façons de régler le son ----------
-log('\n--- Volume : les 4 façons (sur l\'émulateur, chacune doit au moins changer le volume musique) ---')
+# ---------- Volume : les 3 façons de régler le son ----------
+log('\n--- Volume : les 3 façons (sur l\'émulateur, chacune doit au moins changer le volume musique) ---')
 phase('volume')
 okv = True
 hook(vol_methode=0)
 hook(vol_pas=-6)                            # pour pouvoir monter ensuite
 time.sleep(1)
-for meth, name in enumerate(['Android', 'Auto', 'Touches', 'Tout']):
+for meth, name in enumerate(['Android', 'Auto', 'Tout']):
     hook(vol_methode=meth)
     time.sleep(0.5)
     b = re.search(r'vol=(\d+)/', etat('façon %s : avant' % name, 0.5))

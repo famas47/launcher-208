@@ -1,16 +1,12 @@
 package be.pa.launcher208;
 
-import android.app.Instrumentation;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
-import android.view.KeyEvent;
 
 import java.util.ArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * Volume (CarPlay, radio...).
@@ -19,17 +15,15 @@ import java.util.concurrent.Executors;
  * à essayer dans les réglages jusqu'à entendre la différence :
  *  - « Android » : volume musique d'Android (marche sur la plupart des appareils) ;
  *  - « Auto »    : Android choisit le son qui joue en ce moment ;
- *  - « Touches » : comme si on appuyait sur les touches volume de l'autoradio ;
  *  - « Tout »    : tous les volumes d'Android en même temps.
  * Le chiffre affiché reste celui du volume musique d'Android (le seul qu'on peut lire).
  */
 final class Volume {
-    static final int M_MUSIC = 0, M_AUTO = 1, M_KEYS = 2, M_ALL = 3;
-    static final String[] NAMES = {"Android", "Auto", "Touches", "Tout"};
+    static final int M_MUSIC = 0, M_AUTO = 1, M_ALL = 2;
+    static final String[] NAMES = {"Android", "Auto", "Tout"};
 
     private final AudioManager am;
     private final ArrayList<Runnable> listeners = new ArrayList<>();
-    private final ExecutorService keys = Executors.newSingleThreadExecutor();
     volatile String lastError = "";
 
     Volume(Context c) {
@@ -62,7 +56,7 @@ final class Volume {
         } else if (m == M_ALL) {
             setAll(t);
         } else {
-            // « Auto » et « Touches » ne savent que monter ou descendre d'un cran : on répète
+            // « Auto » ne sait que monter ou descendre d'un cran : on répète
             int d = t - get();
             int n = Math.min(Math.abs(d), 20);
             for (int k = 0; k < n; k++) stepWith(m, d > 0 ? 1 : -1);
@@ -86,8 +80,6 @@ final class Volume {
                 am.adjustSuggestedStreamVolume(d > 0 ? AudioManager.ADJUST_RAISE : AudioManager.ADJUST_LOWER,
                         AudioManager.USE_DEFAULT_STREAM_TYPE, 0);
                 lastError = "";
-            } else if (m == M_KEYS) {
-                pressKey(d > 0 ? KeyEvent.KEYCODE_VOLUME_UP : KeyEvent.KEYCODE_VOLUME_DOWN);
             } else if (m == M_ALL) {
                 setAll(get() + d);
             } else {
@@ -111,7 +103,7 @@ final class Volume {
     private void setAll(int v) {
         float frac = Math.max(0, Math.min(max(), v)) / (float) max();
         String err = "";
-        for (int s = 0; s <= 12; s++) {
+        for (int s = 0; s <= 9; s++) { // 10 et plus : accessibilité, assistant (réservés au système)
             try {
                 int mx = am.getStreamMaxVolume(s);
                 if (mx <= 0) continue;
@@ -121,26 +113,6 @@ final class Volume {
             }
         }
         lastError = err;
-    }
-
-    /**
-     * Fait comme un appui sur une touche volume. Android ne l'accepte que pour notre propre fenêtre, mais
-     * sur beaucoup d'autoradios le système règle le son dès qu'il voit la touche, avant de vérifier.
-     */
-    private void pressKey(final int code) {
-        keys.execute(new Runnable() {
-            @Override public void run() {
-                try {
-                    new Instrumentation().sendKeyDownUpSync(code);
-                    lastError = "";
-                } catch (SecurityException e) {
-                    lastError = "touche refusée par Android";
-                } catch (Exception e) {
-                    lastError = e.getClass().getSimpleName();
-                }
-                fire();
-            }
-        });
     }
 
     void capAtStart() {

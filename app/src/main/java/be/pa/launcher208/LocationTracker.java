@@ -44,7 +44,7 @@ final class LocationTracker implements LocationListener {
     private int fixCount;
     private float pendingKm;       // km GPS pas encore enregistrés
     static final float START_KMH = 10f, STOP_KMH = 3f;
-    /** Mode conduite : dès 5 km/h (tenus 2 secondes, pour ignorer les petits sauts du GPS à l'arrêt). */
+    /** Vitesse d'activation du mode conduite si rien n'est réglé (le réglage, 1 km/h par défaut, est dans P.driveKmh()). */
     static final float DRIVE_KMH = 5f;
     static final long TRIP_END_MS = 3L * 60000L;
 

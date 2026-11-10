@@ -112,6 +112,6 @@ final class P {
     /** Vitesse à partir de laquelle le mode conduite s'active. */
     static int driveKmh() { return i(DRIVE_KMH, 1); }
     static boolean minimap() { return b(MINIMAP, true); }
-    static int volMethod() { return i(VOL_METHOD, Volume.M_MUSIC); }
+    static int volMethod() { int m = i(VOL_METHOD, Volume.M_MUSIC); return m >= 0 && m < Volume.NAMES.length ? m : Volume.M_MUSIC; }
     static int volStartMax() { return i(VOL_START_MAX, 15); }
 }

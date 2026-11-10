@@ -148,7 +148,7 @@ final class TestScreen extends Screen {
         check(s, "Volume (musique Android)", new Status() {
             @Override public String get() {
                 String e = App.I.vol.lastError;
-                return App.I.vol.get() + " / " + App.I.vol.max() + " · façon : " + Volume.NAMES[Math.max(0, Math.min(3, P.volMethod()))]
+                return App.I.vol.get() + " / " + App.I.vol.max() + " · façon : " + Volume.NAMES[Math.max(0, Math.min(Volume.NAMES.length - 1, P.volMethod()))]
                         + (App.I.vol.fixed() ? " · volume Android bloqué par l'autoradio" : "") + (e.isEmpty() ? "" : " · erreur " + e);
             }
         }, null, null);
