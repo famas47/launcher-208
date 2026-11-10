@@ -337,6 +337,8 @@ public class HomeActivity extends Activity {
 
     private void driveLogic() {
         if (!P.drive()) { if (driving) exitDrive(); return; }
+        // affiché pendant ce contact (même s'il était déjà affiché quand le contact a été remis)
+        if (driving) App.I.droveThisContact = true;
         rule.setEnterKmh(P.driveKmh());
         int r = rule.tick(driving, App.I.speed(), SystemClock.uptimeMillis(), App.I.sinceContact(),
                 P.driveAfter(), App.I.droveThisContact, P.driveReturn());
