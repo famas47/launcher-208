@@ -1,18 +1,36 @@
 package be.pa.launcher208;
 
+import android.app.Instrumentation;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
+import android.view.KeyEvent;
 
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-/** Volume de la musique (CarPlay, radio...). */
+/**
+ * Volume (CarPlay, radio...).
+ *
+ * Selon les autoradios, le vrai son ne se règle pas au même endroit. On propose donc plusieurs façons,
+ * à essayer dans les réglages jusqu'à entendre la différence :
+ *  - « Android » : volume musique d'Android (marche sur la plupart des appareils) ;
+ *  - « Auto »    : Android choisit le son qui joue en ce moment ;
+ *  - « Touches » : comme si on appuyait sur les touches volume de l'autoradio ;
+ *  - « Tout »    : tous les volumes d'Android en même temps.
+ * Le chiffre affiché reste celui du volume musique d'Android (le seul qu'on peut lire).
+ */
 final class Volume {
+    static final int M_MUSIC = 0, M_AUTO = 1, M_KEYS = 2, M_ALL = 3;
+    static final String[] NAMES = {"Android", "Auto", "Touches", "Tout"};
+
     private final AudioManager am;
     private final ArrayList<Runnable> listeners = new ArrayList<>();
-    String lastError = "";
+    private final ExecutorService keys = Executors.newSingleThreadExecutor();
+    volatile String lastError = "";
 
     Volume(Context c) {
         am = (AudioManager) c.getSystemService(Context.AUDIO_SERVICE);
@@ -30,30 +48,116 @@ final class Volume {
         try { return Math.max(1, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)); } catch (Exception e) { return 30; }
     }
 
-    /** Règle le volume et renvoie la valeur réellement obtenue. */
+    /** Volume d'Android bloqué par le fabricant (le vrai son se règle ailleurs). */
+    boolean fixed() {
+        try { return am.isVolumeFixed(); } catch (Exception e) { return false; }
+    }
+
+    /** Règle le volume (glissière de la bulle) et renvoie la valeur affichée. */
     int set(int v) {
         int t = Math.max(0, Math.min(max(), v));
-        try {
-            am.setStreamVolume(AudioManager.STREAM_MUSIC, t, 0);
-            lastError = "";
-        } catch (Exception e) {
-            lastError = e.getClass().getSimpleName();
+        int m = P.volMethod();
+        if (m == M_MUSIC) {
+            setMusic(t);
+        } else if (m == M_ALL) {
+            setAll(t);
+        } else {
+            // « Auto » et « Touches » ne savent que monter ou descendre d'un cran : on répète
+            int d = t - get();
+            int n = Math.min(Math.abs(d), 20);
+            for (int k = 0; k < n; k++) stepWith(m, d > 0 ? 1 : -1);
         }
         fire();
         return get();
     }
 
-    void step(int d) { set(get() + d); }
+    void step(int d) {
+        int m = P.volMethod();
+        if (m == M_MUSIC) setMusic(get() + d);
+        else if (m == M_ALL) setAll(get() + d);
+        else stepWith(m, d);
+        fire();
+    }
+
+    /** Pour le test des réglages : un cran avec une façon précise. */
+    void stepWith(int m, int d) {
+        try {
+            if (m == M_AUTO) {
+                am.adjustSuggestedStreamVolume(d > 0 ? AudioManager.ADJUST_RAISE : AudioManager.ADJUST_LOWER,
+                        AudioManager.USE_DEFAULT_STREAM_TYPE, 0);
+                lastError = "";
+            } else if (m == M_KEYS) {
+                pressKey(d > 0 ? KeyEvent.KEYCODE_VOLUME_UP : KeyEvent.KEYCODE_VOLUME_DOWN);
+            } else if (m == M_ALL) {
+                setAll(get() + d);
+            } else {
+                setMusic(get() + d);
+            }
+        } catch (Exception e) {
+            lastError = e.getClass().getSimpleName();
+        }
+    }
+
+    private void setMusic(int v) {
+        try {
+            am.setStreamVolume(AudioManager.STREAM_MUSIC, Math.max(0, Math.min(max(), v)), 0);
+            lastError = "";
+        } catch (Exception e) {
+            lastError = e.getClass().getSimpleName();
+        }
+    }
+
+    /** Tous les volumes d'Android à la même proportion que le volume musique demandé. */
+    private void setAll(int v) {
+        float frac = Math.max(0, Math.min(max(), v)) / (float) max();
+        String err = "";
+        for (int s = 0; s <= 12; s++) {
+            try {
+                int mx = am.getStreamMaxVolume(s);
+                if (mx <= 0) continue;
+                am.setStreamVolume(s, Math.round(frac * mx), 0);
+            } catch (Exception e) {
+                if (s == AudioManager.STREAM_MUSIC) err = e.getClass().getSimpleName();
+            }
+        }
+        lastError = err;
+    }
+
+    /**
+     * Fait comme un appui sur une touche volume. Android ne l'accepte que pour notre propre fenêtre, mais
+     * sur beaucoup d'autoradios le système règle le son dès qu'il voit la touche, avant de vérifier.
+     */
+    private void pressKey(final int code) {
+        keys.execute(new Runnable() {
+            @Override public void run() {
+                try {
+                    new Instrumentation().sendKeyDownUpSync(code);
+                    lastError = "";
+                } catch (SecurityException e) {
+                    lastError = "touche refusée par Android";
+                } catch (Exception e) {
+                    lastError = e.getClass().getSimpleName();
+                }
+                fire();
+            }
+        });
+    }
 
     void capAtStart() {
         int cap = P.volStartMax();
-        if (get() > cap) set(cap);
+        if (get() > cap) setMusic(cap);
     }
 
     void add(Runnable r) { if (!listeners.contains(r)) listeners.add(r); }
     void remove(Runnable r) { listeners.remove(r); }
 
     private void fire() {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            App.I.main.post(new Runnable() {
+                @Override public void run() { fire(); }
+            });
+            return;
+        }
         for (int i = 0; i < listeners.size(); i++) listeners.get(i).run();
     }
 }

@@ -145,17 +145,40 @@ final class TestScreen extends Screen {
         check(s, "Dernière appli à l'écran", new Status() {
             @Override public String get() { LauncherService ls = LauncherService.I; return ls == null ? "service arrêté" : ls.fgPkg.isEmpty() ? "inconnue" : ls.fgPkg; }
         }, null, null);
-        check(s, "Volume (musique)", new Status() {
+        check(s, "Volume (musique Android)", new Status() {
             @Override public String get() {
                 String e = App.I.vol.lastError;
-                return App.I.vol.get() + " / " + App.I.vol.max() + (e.isEmpty() ? "" : " · erreur " + e);
+                return App.I.vol.get() + " / " + App.I.vol.max() + " · façon : " + Volume.NAMES[Math.max(0, Math.min(3, P.volMethod()))]
+                        + (App.I.vol.fixed() ? " · volume Android bloqué par l'autoradio" : "") + (e.isEmpty() ? "" : " · erreur " + e);
             }
         }, null, null);
-        LinearLayout vr = row(s, "Test du volume : le chiffre doit changer");
+        LinearLayout vr = row(s, "Test du volume : écoute si le son change (façon choisie dans Réglages)");
         vr.addView(btn("−", new Runnable() { @Override public void run() { App.I.vol.step(-1); refreshNow(); } }));
         vr.addView(U.gap(a, 8, 1));
         vr.addView(btn("+", new Runnable() { @Override public void run() { App.I.vol.step(1); refreshNow(); } }));
         s.addView(U.line(a));
+
+        // ----- Autoradio : pour savoir quel système il utilise (Bluetooth, volume) -----
+        s = section(c1, "Autoradio");
+        final String model = android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " · puce " + android.os.Build.HARDWARE
+                + " / " + android.os.Build.BOARD + " · Android " + android.os.Build.VERSION.RELEASE + " (API " + android.os.Build.VERSION.SDK_INT + ")";
+        check(s, "Modèle", new Status() {
+            @Override public String get() { return model; }
+        }, null, null);
+        final String vendor = vendorApps();
+        check(s, "Applis du fabricant", new Status() {
+            @Override public String get() { return vendor; }
+        }, null, null, 6);
+        check(s, "Bluetooth d'Android", new Status() {
+            @Override public String get() {
+                try {
+                    android.bluetooth.BluetoothAdapter ad = android.bluetooth.BluetoothAdapter.getDefaultAdapter();
+                    return ad == null ? "absent (l'autoradio utilise sa propre puce)" : ad.isEnabled() ? "allumé" : "éteint";
+                } catch (Exception e) {
+                    return "?";
+                }
+            }
+        }, null, null);
 
         // ----- Colonne 2 -----
         s = section(c2, "Radio");
@@ -261,6 +284,41 @@ final class TestScreen extends Screen {
     // ---------- Constructeurs ----------
     interface Status { String get(); }
 
+    /** Paquets des applis système du fabricant (radio, Bluetooth...), regroupés : ils disent quel système c'est. */
+    private String vendorApps() {
+        try {
+            android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_LAUNCHER);
+            java.util.TreeSet<String> set = new java.util.TreeSet<>();
+            for (android.content.pm.ResolveInfo r : a.getPackageManager().queryIntentActivities(i, 0)) {
+                android.content.pm.ApplicationInfo ai = r.activityInfo.applicationInfo;
+                String p = ai.packageName;
+                if ((ai.flags & android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0) continue;
+                if (p.startsWith("com.android.") || p.startsWith("com.google.") || p.equals(a.getPackageName())) continue;
+                set.add(p);
+            }
+            if (set.isEmpty()) return "aucune";
+            // regroupées par début de nom : « com.syu : bt, radio » (plus court à lire sur une photo)
+            java.util.TreeMap<String, StringBuilder> groups = new java.util.TreeMap<>();
+            for (String p : set) {
+                String[] parts = p.split("\\.");
+                String head = parts.length >= 3 ? parts[0] + "." + parts[1] : p;
+                String tail = parts.length >= 3 ? p.substring(head.length() + 1) : "";
+                StringBuilder g = groups.get(head);
+                if (g == null) groups.put(head, g = new StringBuilder());
+                if (!tail.isEmpty()) g.append(g.length() > 0 ? ", " : "").append(tail);
+            }
+            StringBuilder sb = new StringBuilder();
+            for (java.util.Map.Entry<String, StringBuilder> e : groups.entrySet()) {
+                if (sb.length() > 0) sb.append(" · ");
+                sb.append(e.getKey());
+                if (e.getValue().length() > 0) sb.append(" : ").append(e.getValue());
+            }
+            return sb.length() > 700 ? sb.substring(0, 700) + "…" : sb.toString();
+        } catch (Exception e) {
+            return "?";
+        }
+    }
+
     private LinearLayout section(LinearLayout parent, String title) {
         LinearLayout c = U.col(a);
         U.card(c, Pal.card, 20);
@@ -290,11 +348,15 @@ final class TestScreen extends Screen {
     }
 
     private void check(LinearLayout s, String title, final Status st, String action, Runnable run) {
+        check(s, title, st, action, run, 3);
+    }
+
+    private void check(LinearLayout s, String title, final Status st, String action, Runnable run, int lines) {
         LinearLayout r = U.row(a);
         r.setMinimumHeight(U.s(54));
         LinearLayout t = U.col(a);
         t.addView(U.tv(a, title, 14, Pal.text, 600));
-        final TextView v = U.tvMulti(a, "", 12, Pal.text2, 400, 3);
+        final TextView v = U.tvMulti(a, "", 12, Pal.text2, 400, lines);
         t.addView(v, U.lpm(U.M, U.WR, 0, 2, 0, 0));
         r.addView(t, new LinearLayout.LayoutParams(0, U.WR, 1));
         U.pad(t, 0, 6, 8, 6);

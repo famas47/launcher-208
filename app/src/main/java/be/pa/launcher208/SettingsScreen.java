@@ -8,7 +8,7 @@ import android.widget.TextView;
 
 /** Réglages du launcher (les réglages de l'autoradio restent dans ses écrans d'origine). */
 final class SettingsScreen extends Screen {
-    private TextView phoneVal, cpApp, radioApp, musicApp, phoneApp, camApp, retVal, afterVal, odoVal, volVal, clockVal, nightRange, mapStatus, updStatus, version;
+    private TextView phoneVal, cpApp, radioApp, musicApp, phoneApp, camApp, retVal, afterVal, kmhVal, odoVal, volVal, clockVal, nightRange, mapStatus, updStatus, version;
     private TextView mapBtn, updBtn;
     private View nightRangeRow;
 
@@ -77,7 +77,7 @@ final class SettingsScreen extends Screen {
         s = section(c1, "CarPlay");
         cpApp = U.tv(a, "", 14, Pal.text2, 500);
         add(s, row("Application CarPlay", "Celle qui affiche CarPlay", valueBtn(cpApp, chooser("Application CarPlay", P.PKG_CARPLAY))), true);
-        add(s, row("Ouvrir CarPlay tout seul", "« iPhone » : quand ton iPhone se connecte en Bluetooth",
+        add(s, row("Ouvrir CarPlay tout seul", "« Au démarrage » conseillé : comme avant",
                 Widgets.seg(a, new String[]{"Non", "Au démarrage", "iPhone"}, P.carplayAuto(), new Widgets.IntCb() {
             @Override public void on(int v) {
                 P.put(P.CARPLAY_AUTO, v);
@@ -107,6 +107,27 @@ final class SettingsScreen extends Screen {
             @Override public void on(boolean v) { P.put(P.BUBBLE, v); }
         }));
         add(s, row("Bulle volume", "Sur CarPlay, à glisser où tu veux", bubbleRight), false);
+
+        s = section(c1, "Volume");
+        add(s, row("Façon de régler le son", "Choisis celle qui change vraiment le son",
+                Widgets.seg(a, Volume.NAMES, P.volMethod(), new Widgets.IntCb() {
+            @Override public void on(int v) { P.put(P.VOL_METHOD, v); }
+        })), true);
+        LinearLayout tryBtns = U.row(a);
+        TextView minus = actionBtn("−", Pal.card2, Pal.text, new Runnable() {
+            @Override public void run() { App.I.vol.step(-2); }
+        });
+        TextView plus = actionBtn("+", Pal.card2, Pal.text, new Runnable() {
+            @Override public void run() { App.I.vol.step(2); }
+        });
+        minus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, U.f(20));
+        plus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, U.f(20));
+        minus.setMinWidth(U.s(64));
+        plus.setMinWidth(U.s(64));
+        tryBtns.addView(minus, U.lp(U.WR, U.s(42)));
+        tryBtns.addView(U.gap(a, 10, 1));
+        tryBtns.addView(plus, U.lp(U.WR, U.s(42)));
+        add(s, row("Essayer", "Mets de la musique et écoute", tryBtns), false);
 
         s = section(c1, "Applications des raccourcis");
         radioApp = U.tv(a, "", 14, Pal.text2, 500);
@@ -141,8 +162,18 @@ final class SettingsScreen extends Screen {
 
         // ----- Colonne 2 -----
         s = section(c2, "Mode conduite");
-        add(s, row("Mode conduite", "S'active dès " + Math.round(LocationTracker.DRIVE_KMH) + " km/h", new Widgets.Toggle(a, P.drive(), new Widgets.BoolCb() {
+        add(s, row("Mode conduite", "Par la vitesse ou le temps choisis ci-dessous", new Widgets.Toggle(a, P.drive(), new Widgets.BoolCb() {
             @Override public void on(boolean v) { P.put(P.DRIVE, v); }
+        })), true);
+        kmhVal = U.tv(a, "", 15, Pal.text, 600);
+        add(s, row("S'active dès", "Vitesse de la voiture", valueBtn(kmhVal, new Runnable() {
+            @Override public void run() {
+                int[] opts = {1, 2, 3, 5, 10};
+                int cur = P.driveKmh(), next = opts[0];
+                for (int i = 0; i < opts.length; i++) if (opts[i] == cur) next = opts[(i + 1) % opts.length];
+                P.put(P.DRIVE_KMH, next);
+                refresh();
+            }
         })), true);
         afterVal = U.tv(a, "", 15, Pal.text, 600);
         add(s, row("Activer après le contact", "Même si la vitesse n'arrive pas", valueBtn(afterVal, new Runnable() {
@@ -360,6 +391,7 @@ final class SettingsScreen extends Screen {
         retVal.setText(r < 60 ? r + " s" : (r / 60) + " min");
         int am = P.driveAfter();
         afterVal.setText(am == 0 ? "Non" : am + " min");
+        kmhVal.setText(P.driveKmh() + " km/h");
         long km = LocationTracker.odometer();
         odoVal.setText(km > 0 ? Fmt.big(km) + " km" : "À saisir");
         volVal.setText("Max " + P.volStartMax());

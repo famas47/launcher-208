@@ -48,6 +48,8 @@ public class HomeActivity extends Activity {
         super.onCreate(b);
         createdAt = SystemClock.uptimeMillis();
         App.mark("activité créée");
+        // les touches volume de l'autoradio règlent la musique quand l'accueil est affiché
+        setVolumeControlStream(android.media.AudioManager.STREAM_MUSIC);
         // Une seule page d'accueil à la fois : si Android en crée une deuxième (par exemple ouverte une fois
         // depuis la liste des applis, puis bouton accueil), l'ancienne est fermée pour ne pas garder deux écrans en mémoire.
         HomeActivity old = live != null ? live.get() : null;
@@ -283,6 +285,7 @@ public class HomeActivity extends Activity {
 
     private void driveLogic() {
         if (!P.drive()) { if (driving) exitDrive(); return; }
+        rule.setEnterKmh(P.driveKmh());
         int r = rule.tick(driving, App.I.speed(), SystemClock.uptimeMillis(), App.I.sinceContact(),
                 P.driveAfter(), App.I.droveThisContact, P.driveReturn());
         if (r == DriveRule.ENTER_SPEED || r == DriveRule.ENTER_TIMER) {
@@ -395,6 +398,9 @@ public class HomeActivity extends Activity {
             showScreen(S_HOME);
             home().tab(1);
         }
+        if (i.hasExtra("test_kmh")) P.put(P.DRIVE_KMH, i.getIntExtra("test_kmh", 1));
+        if (i.hasExtra("test_vol_methode")) P.put(P.VOL_METHOD, i.getIntExtra("test_vol_methode", 0));
+        if (i.hasExtra("test_vol_pas")) App.I.vol.step(i.getIntExtra("test_vol_pas", 1));
         if (i.hasExtra("test_conduite_apres")) P.put(P.DRIVE_AFTER, i.getIntExtra("test_conduite_apres", 0));
         if (i.hasExtra("test_retour")) P.put(P.DRIVE_RETURN, i.getIntExtra("test_retour", 60));
         if (i.hasExtra("test_contact")) { // contact mis il y a N secondes (nouveau démarrage)
@@ -412,7 +418,9 @@ public class HomeActivity extends Activity {
             android.util.Log.i("Test208", "etat maj=" + App.I.upd.status + " | carte=" + App.I.mapdl.status + " " + (App.I.mapdl.done >> 10)
                     + " Ko | meteo=" + (App.I.weather.fresh() ? App.I.weather.temp() + "°" : "aucune") + " | heure_suspecte=" + Clock.suspicious()
                     + " | ecart_internet_s=" + (Net.offset() / 1000) + " | tls=" + Net.lastTlsFix + " | conduite=" + driving + " | contact_s=" + (App.I.sinceContact() / 1000)
-                    + " | apres_min=" + P.driveAfter() + " | attente_arret=" + rule.waitingAfterHand());
+                    + " | apres_min=" + P.driveAfter() + " | attente_arret=" + rule.waitingAfterHand()
+                    + " | kmh=" + P.driveKmh() + " | vol=" + App.I.vol.get() + "/" + App.I.vol.max() + " methode=" + P.volMethod()
+                    + " fixe=" + App.I.vol.fixed() + " err=" + App.I.vol.lastError + " | carplay_auto=" + P.carplayAuto());
         }
         if (i.hasExtra("test_info")) root.post(new Runnable() {
             @Override public void run() { testLog(root); }

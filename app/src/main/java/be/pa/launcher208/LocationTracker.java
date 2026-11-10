@@ -128,12 +128,16 @@ final class LocationTracker implements LocationListener {
         long nowUp = SystemClock.uptimeMillis();
         Clock.onGpsTime(l.getTime());
         float kmh;
-        if (l.hasSpeed()) kmh = l.getSpeed() * 3.6f;
+        boolean doppler = l.hasSpeed(); // vitesse mesurée par la puce GPS (précise même très lentement)
+        if (doppler) kmh = l.getSpeed() * 3.6f;
         else if (prev != null && l.getTime() > prev.getTime() && (!l.hasAccuracy() || l.getAccuracy() < 25)) {
             kmh = prev.distanceTo(l) / ((l.getTime() - prev.getTime()) / 1000f) * 3.6f; // GPS sans vitesse : on la calcule
         }
         else kmh = 0;
-        if (kmh < 2f) kmh = 0;
+        // à l'arrêt, le GPS « bouge » un peu : on ignore les toutes petites vitesses. La vitesse calculée à partir
+        // des positions est trop imprécise sous 2 km/h ; celle de la puce suit le réglage (1 km/h possible).
+        float floor = doppler ? Math.min(2f, P.driveKmh()) : 2f;
+        if (kmh < floor) kmh = 0;
         speedKmh = kmh;
         if (l.hasBearing() && kmh > 3) bearing = l.getBearing();
         accuracy = l.hasAccuracy() ? l.getAccuracy() : -1;

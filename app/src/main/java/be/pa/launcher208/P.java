@@ -35,6 +35,7 @@ final class P {
     static final String DRIVE = "drive";
     static final String DRIVE_RETURN = "driveReturn";  // secondes
     static final String DRIVE_AFTER = "driveAfter";    // minutes après le contact (0 = non)
+    static final String DRIVE_KMH = "driveKmh";        // vitesse d'activation (km/h)
     static final String MINIMAP = "minimap";
     // Voiture
     static final String ODO_BASE = "odoBase";          // km saisis
@@ -61,8 +62,17 @@ final class P {
     static final String BR_MAX = "brMax";
     static final String BR_MIN = "brMin";
 
+    // Son
+    static final String VOL_METHOD = "volMethod";      // façon de changer le volume (Volume.M_*)
+    // Changements de réglages faits une seule fois lors d'une mise à jour
+    private static final String MIGR_V8 = "migrV8";
+
     static void init(Context c) {
         sp = c.getSharedPreferences("cfg", Context.MODE_PRIVATE);
+        if (!sp.getBoolean(MIGR_V8, false)) {
+            // v8 : CarPlay de nouveau ouvert au démarrage, comme avant la v6 (c'est ce qui rallume le Bluetooth)
+            sp.edit().putInt(CARPLAY_AUTO, PhoneWatch.AUTO_BOOT).putBoolean(MIGR_V8, true).apply();
+        }
     }
 
     static int i(String k, int d) { return sp.getInt(k, d); }
@@ -92,13 +102,16 @@ final class P {
     static boolean fluidMax() { return i(FLUID, 0) == 0; }
     static boolean officialIcons() { return i(ICONS, 0) == 1; }
     static boolean fullscreen() { return b(FULLSCREEN, true); }
-    /** Ouverture automatique de CarPlay : par défaut quand l'iPhone se connecte en Bluetooth. */
-    static int carplayAuto() { return i(CARPLAY_AUTO, PhoneWatch.AUTO_PHONE); }
+    /** Ouverture automatique de CarPlay : par défaut au démarrage (comme l'autoradio l'a toujours fait). */
+    static int carplayAuto() { return i(CARPLAY_AUTO, PhoneWatch.AUTO_BOOT); }
     static boolean bubble() { return b(BUBBLE, true); }
     static boolean drive() { return b(DRIVE, true); }
     static int driveReturn() { return i(DRIVE_RETURN, 60); }
     /** Mode conduite aussi N minutes après le contact, même sans vitesse (0 = seulement la vitesse). */
     static int driveAfter() { return i(DRIVE_AFTER, 0); }
+    /** Vitesse à partir de laquelle le mode conduite s'active. */
+    static int driveKmh() { return i(DRIVE_KMH, 1); }
     static boolean minimap() { return b(MINIMAP, true); }
+    static int volMethod() { return i(VOL_METHOD, Volume.M_MUSIC); }
     static int volStartMax() { return i(VOL_START_MAX, 15); }
 }
