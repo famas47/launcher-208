@@ -31,6 +31,7 @@ final class HomeScreen extends Screen {
     private TextView subtitle;
     private CarView car;
     private View arrowL, arrowR, doorChip, topCard, permChip;
+    private TextView permText;
     private TextView hint, doorText, doorExtra;
     private TopView top;
     private TextView parkTitle, parkSub, dayTitle, maintTitle, maintSub;
@@ -122,9 +123,13 @@ final class HomeScreen extends Screen {
         pc.setBackground(U.rrStroke(Pal.warnBg, 24, Pal.warnLine, 2));
         U.pad(pc, 14, 0, 20, 0);
         pc.addView(U.box(a, 30, U.oval(Pal.ORANGE), R.drawable.ic_alert, 18, Pal.WHITE));
-        pc.addView(U.tv(a, "Bulle du volume : autorisations à donner · touche ici", 15, Pal.warnText, 600), U.lpm(U.WR, U.WR, 10, 0, 0, 0));
+        permText = U.tv(a, "", 15, Pal.warnText, 600);
+        pc.addView(permText, U.lpm(U.WR, U.WR, 10, 0, 0, 0));
         U.click(pc, 24, new Runnable() {
-            @Override public void run() { a.showScreen(HomeActivity.S_TEST); }
+            @Override public void run() {
+                if (btPermMissing()) a.requestPerm(android.Manifest.permission.BLUETOOTH_CONNECT, HomeActivity.REQ_BT);
+                else a.showScreen(HomeActivity.S_TEST);
+            }
         });
         permChip = pc;
         pc.setVisibility(View.GONE);
@@ -454,8 +459,16 @@ final class HomeScreen extends Screen {
     /** Bandeau « autorisations à donner » : bulle activée mais pas encore autorisée (et aucune porte ouverte). */
     private void updatePermChip() {
         if (permChip == null) return;
-        boolean missing = P.bubble() && (!LauncherService.canOverlay(a) || !LauncherService.usageAccess(a));
-        permChip.setVisibility(missing && App.I.doors.mask() == 0 ? View.VISIBLE : View.GONE);
+        boolean bt = btPermMissing();
+        boolean bubble = P.bubble() && (!LauncherService.canOverlay(a) || !LauncherService.usageAccess(a));
+        permText.setText(bt ? "Bluetooth : autorisation à donner pour l'allumer · touche ici"
+                : "Bulle du volume : autorisations à donner · touche ici");
+        permChip.setVisibility((bt || bubble) && App.I.doors.mask() == 0 ? View.VISIBLE : View.GONE);
+    }
+
+    /** Le launcher doit allumer le Bluetooth, mais Android ne le lui permet pas encore. */
+    private boolean btPermMissing() {
+        return P.btAuto() && BtPower.present(a) && !PhoneWatch.permitted(a);
     }
 
     /** Sous-titre sous « Peugeot 208 », selon l'onglet (comme sur les maquettes). */

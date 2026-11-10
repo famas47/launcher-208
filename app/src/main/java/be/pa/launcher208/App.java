@@ -48,6 +48,8 @@ public class App extends Application {
         long up = SystemClock.elapsedRealtime();
         contactAt = up < 10L * 60000L ? 0 : up;
         P.init(this);
+        // le plus tôt possible : allumer le Bluetooth pour que l'iPhone se connecte tout de suite
+        if (P.btAuto()) BtPower.ensureOn(this);
         U.init(this);
         trips = new TripStore(this);
         loc = new LocationTracker(this, trips);

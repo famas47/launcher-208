@@ -137,37 +137,52 @@ public class HomeActivity extends Activity {
     };
 
     private void maybeOpenCarplayAtStart() {
-        int mode = P.carplayAuto();
-        if (mode == PhoneWatch.AUTO_NEVER) return;
         long boot = bootId();
         if (boot == P.l(P.LAST_BOOT, -1)) return;
         P.put(P.LAST_BOOT, boot);
         if (SystemClock.elapsedRealtime() > 10L * 60000L) return; // seulement juste après l'allumage
-        if (mode == PhoneWatch.AUTO_PHONE) { waitForPhoneAtStart(); return; }
-        openCarplayAtStart("ouvert au démarrage");
+        if (P.btAuto()) startBluetooth();
+        int mode = P.carplayAuto();
+        if (mode == PhoneWatch.AUTO_BOOT) openCarplayAtStart("ouvert au démarrage");
+        else if (mode == PhoneWatch.AUTO_PHONE) watchPhoneAtStart();
     }
 
     /**
-     * Comme le logiciel d'origine : le Bluetooth s'allume, puis CarPlay s'ouvre quand ton iPhone se connecte.
-     * Si Android ne peut pas allumer le Bluetooth ou ne connaît pas ton iPhone, CarPlay est ouvert tout de suite,
-     * comme avant (c'est alors S-Play qui allume le Bluetooth).
+     * Bluetooth allumé tout de suite (il l'est en général déjà : l'appli l'allume dès son lancement).
+     * S'il manque l'autorisation, on la demande ; si Android refuse quand même, il propose de l'allumer (un toucher).
      */
-    private void waitForPhoneAtStart() {
-        if (P.btAuto()) BtPower.ensureOn(this);
+    private void startBluetooth() {
+        int r = BtPower.ensureOn(this);
+        if (r == BtPower.NO_PERMISSION && Build.VERSION.SDK_INT >= 31) {
+            requestPerm(android.Manifest.permission.BLUETOOTH_CONNECT, REQ_BT);
+        } else if (r == BtPower.REFUSED) {
+            askBluetoothOn();
+        }
+    }
+
+    @android.annotation.SuppressLint("MissingPermission") // seulement après un refus d'allumer, donc autorisation donnée
+    private void askBluetoothOn() {
+        try {
+            startActivity(new Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE));
+            BtPower.last += " · demande d'allumage affichée";
+        } catch (Exception ignored) { }
+    }
+
+    /**
+     * Comme le logiciel d'origine : CarPlay ne s'ouvre PAS au démarrage, seulement quand ton iPhone se connecte.
+     * Il s'est peut-être connecté avant que le launcher soit prêt : on vérifie à 8 s puis à 28 s.
+     */
+    private void watchPhoneAtStart() {
         App.I.main.postDelayed(new Runnable() {
             @Override public void run() {
-                if (isFinishing() || isDestroyed()) return;
-                if (!BtPower.isOn(HomeActivity.this)) {
-                    openCarplayAtStart("Bluetooth éteint (" + BtPower.last + ") : CarPlay ouvert comme avant");
-                } else if (!PhoneWatch.knowsMyPhone()) {
-                    openCarplayAtStart("Android ne connaît pas ton iPhone : CarPlay ouvert comme avant");
-                } else {
-                    PhoneWatch.lastAction = "Bluetooth allumé : en attente de ton iPhone";
-                    PhoneWatch.checkConnected(HomeActivity.this);
-                    // une deuxième fois un peu plus tard (l'iPhone met parfois du temps à se connecter)
+                if (BtPower.isOn(App.I)) {
+                    if (PhoneWatch.lastAction.isEmpty()) PhoneWatch.lastAction = "Bluetooth allumé : en attente de ton iPhone";
+                    PhoneWatch.checkConnected(App.I);
                     App.I.main.postDelayed(new Runnable() {
                         @Override public void run() { PhoneWatch.checkConnected(App.I); }
                     }, 20000);
+                } else {
+                    PhoneWatch.lastAction = "Bluetooth éteint (" + BtPower.last + ")";
                 }
             }
         }, 8000);
@@ -498,6 +513,11 @@ public class HomeActivity extends Activity {
         if (req == REQ_LOC && App.I.loc.permitted()) {
             LauncherService.start(this);
             App.I.loc.start();
+        }
+        if (req == REQ_BT && PhoneWatch.permitted(this) && P.btAuto()) {
+            // autorisation donnée : on allume le Bluetooth maintenant et on cherche l'iPhone
+            if (BtPower.ensureOn(this) == BtPower.REFUSED) askBluetoothOn();
+            if (P.carplayAuto() == PhoneWatch.AUTO_PHONE) watchPhoneAtStart();
         }
         refreshAll();
     }

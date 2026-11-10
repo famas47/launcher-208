@@ -408,7 +408,15 @@ else:
     bt1 = etat('Bluetooth coupé (doit être off)', 0.5)
     hook(bt=1)
     bt2 = etat('le launcher le rallume (doit être on)', 8)
-    ok = 'carplay_auto=2' in bt0 and 'bt=off' in bt1 and 'bt=on' in bt2
+    # comme un démarrage de l'autoradio : Bluetooth coupé, appli relancée de zéro
+    adb('shell cmd bluetooth_manager disable')
+    adb('shell svc bluetooth disable')
+    time.sleep(5)
+    adb('shell am force-stop ' + PKG)
+    adb('shell am start -W -n ' + ACT)
+    bt3 = etat('appli relancée avec le Bluetooth coupé (doit être on, sans ouvrir CarPlay)', 8)
+    ok = ('carplay_auto=2' in bt0 and 'bt=off' in bt1 and 'bt=on' in bt2 and 'bt=on' in bt3
+          and 'CarPlay ouvert' not in bt3)
     log('  verdict bluetooth :', 'OK' if ok else 'ANORMAL')
 
 # ---------- Volume : les 3 façons de régler le son ----------
