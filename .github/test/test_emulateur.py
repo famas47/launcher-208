@@ -455,7 +455,7 @@ time.sleep(1.5)
 ec = re.findall(r'ecoute volume : (.*)', adb('logcat -d -s Test208:I'))
 ec = ec[-1] if ec else '(pas de réponse)'
 log('  ce que l\'écoute a vu :', ec)
-log('  verdict écoute :', 'OK' if ('VOLUME_UP' in ec and 'volume Android' in ec) else 'ANORMAL')
+log('  verdict écoute :', 'OK' if ('VOLUME_UP' in ec and 'VOLUME_DOWN' in ec) else 'ANORMAL')
 
 # ---------- Mode conduite après le contact (réglage « Activer après le contact ») ----------
 log('\n--- Mode conduite après le contact (réglage 2 min, GPS sans vitesse) ---')
