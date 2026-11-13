@@ -453,6 +453,13 @@ public class HomeActivity extends Activity {
             home().tab(1);
         }
         if (i.hasExtra("test_bt")) BtPower.ensureOn(this);
+        if (i.hasExtra("test_ecoute")) {
+            VolumeSpy.start(this);
+            App.mark("ecoute volume demarree");
+        }
+        if (i.hasExtra("test_ecoute_resultat")) {
+            android.util.Log.i("Test208", "ecoute volume : " + VolumeSpy.text().replace("\n", " | "));
+        }
         if (i.hasExtra("test_kmh")) P.put(P.DRIVE_KMH, i.getIntExtra("test_kmh", 1));
         if (i.hasExtra("test_vol_methode")) P.put(P.VOL_METHOD, i.getIntExtra("test_vol_methode", 0));
         if (i.hasExtra("test_vol_pas")) App.I.vol.step(i.getIntExtra("test_vol_pas", 1));
@@ -495,6 +502,12 @@ public class HomeActivity extends Activity {
             android.view.ViewGroup g = (android.view.ViewGroup) v;
             for (int k = 0; k < g.getChildCount(); k++) testLog(g.getChildAt(k));
         }
+    }
+
+    /** Écoute du volume (mode test) : note les touches que l'autoradio envoie. */
+    @Override public boolean dispatchKeyEvent(android.view.KeyEvent e) {
+        VolumeSpy.onKey(e);
+        return super.dispatchKeyEvent(e);
     }
 
     @Override public void onBackPressed() {

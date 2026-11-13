@@ -441,6 +441,22 @@ for meth, name in enumerate(['Android', 'Auto', 'Tout']):
 hook(vol_methode=0)
 log('  verdict volume :', 'OK' if okv else 'ANORMAL')
 
+# ---------- Écoute du volume (mode test) : voit-elle les boutons volume de l'autoradio ? ----------
+log('\n--- Écoute du volume : touches volume simulées comme les boutons de l\'autoradio ---')
+phase('ecoute')
+hook(ecoute=1)
+time.sleep(1)
+adb('shell input keyevent KEYCODE_VOLUME_UP')
+time.sleep(1.5)
+adb('shell input keyevent KEYCODE_VOLUME_DOWN')
+time.sleep(1.5)
+hook(ecoute_resultat=1)
+time.sleep(1.5)
+ec = re.findall(r'ecoute volume : (.*)', adb('logcat -d -s Test208:I'))
+ec = ec[-1] if ec else '(pas de réponse)'
+log('  ce que l\'écoute a vu :', ec)
+log('  verdict écoute :', 'OK' if ('VOLUME_UP' in ec and 'volume Android' in ec) else 'ANORMAL')
+
 # ---------- Mode conduite après le contact (réglage « Activer après le contact ») ----------
 log('\n--- Mode conduite après le contact (réglage 2 min, GPS sans vitesse) ---')
 phase('minuteur')

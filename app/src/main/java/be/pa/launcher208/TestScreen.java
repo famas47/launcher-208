@@ -179,6 +179,20 @@ final class TestScreen extends Screen {
             @Override public void run() { BtPower.ensureOn(a); refreshNow(); }
         });
 
+        // ----- Comment l'autoradio règle le vrai son -----
+        s = section(c1, "Volume de l'autoradio");
+        check(s, "Écoute du volume", new Status() {
+            @Override public String get() {
+                return VolumeSpy.active() ? "en cours (encore " + VolumeSpy.secondsLeft() + " s) : règle le son avec les boutons de l'autoradio"
+                        : "touche « Écouter », puis monte et baisse le son avec les boutons de l'autoradio (barre du haut ou volant)";
+            }
+        }, "Écouter", new Runnable() {
+            @Override public void run() { VolumeSpy.start(a); refreshNow(); }
+        });
+        check(s, "Ce qui a changé", new Status() {
+            @Override public String get() { return VolumeSpy.text(); }
+        }, null, null, 12);
+
         // ----- Colonne 2 -----
         s = section(c2, "Radio");
         check(s, "Appli radio reconnue", new Status() {

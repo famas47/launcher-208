@@ -103,7 +103,8 @@ final class Volume {
     private void setAll(int v) {
         float frac = Math.max(0, Math.min(max(), v)) / (float) max();
         String err = "";
-        for (int s = 0; s <= 9; s++) { // 10 et plus : accessibilité, assistant (réservés au système)
+        for (int s = 0; s <= 20; s++) { // jusqu'aux volumes ajoutés par certains fabricants
+            if (s == 10 || s == 11) continue; // accessibilité, assistant : réservés au système
             try {
                 int mx = am.getStreamMaxVolume(s);
                 if (mx <= 0) continue;
