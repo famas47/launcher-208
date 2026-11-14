@@ -123,7 +123,9 @@ final class MiniMap {
             mv.getLayerManager().getLayers().add(layer);
             if (rotating) {
                 mv.getLayerManager().getLayers().add(new ThreadedLabelLayer(AndroidGraphicFactory.INSTANCE, layer.getLabelStore()));
-                mv.setMapViewCenterY(this.centerY);
+                // la zone dessinée est déjà un carré de la taille de la diagonale : pas besoin de marge en plus
+                // (moins d'image à préparer à chaque mouvement, donc plus fluide)
+                mv.getModel().frameBufferModel.setOverdrawFactor(1.0);
             }
             attached = true;
             mv.setZoomLevelMin((byte) 12);

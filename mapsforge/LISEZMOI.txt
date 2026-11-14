@@ -6,6 +6,4 @@ Modifications faites pour Launcher 208 (repérées par « Launcher 208 » dans l
   pour que l'écran reste fluide pendant que la carte se dessine.
 - map/.../layer/renderer/TileRendererLayer.java : le thème de la carte n'est lu qu'une seule fois (au lieu de
   deux fois de suite au démarrage de la carte), dans un fil en priorité basse.
-- map/.../util/MapPositionUtil.java : quand la carte tourne, la zone à dessiner n'est plus décalée avant la
-  rotation (sinon, avec la voiture placée en bas de la carte, une partie de la vue 3D restait vide).
 Le reste est identique à la version d'origine.

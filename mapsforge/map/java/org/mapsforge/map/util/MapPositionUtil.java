@@ -51,13 +51,6 @@ public final class MapPositionUtil {
         double maxLatitude;
         double maxLongitude;
         if (!Rotation.noRotation(rotation)) {
-            // Launcher 208 : avec une rotation, la zone dessinée (carré centré sur le centre de la carte) n'est pas
-            // décalée. Le décalage du centre (mapViewCenterY) était appliqué avant la rotation, donc dans la
-            // mauvaise direction : une partie de la carte inclinée restait vide.
-            left = pixelX - halfCanvasWidth;
-            top = pixelY - halfCanvasHeight;
-            right = pixelX + halfCanvasWidth;
-            bottom = pixelY + halfCanvasHeight;
             Rotation mapRotation = new Rotation(rotation.degrees, (float) pixelX, (float) pixelY);
             Point lowerRight = mapRotation.rotate(right, bottom);
             Point upperLeft = mapRotation.rotate(left, top);

@@ -342,17 +342,20 @@ final class DriveScreen extends Screen {
             // hauteur de la voiture dans le cadre : plus bas quand la carte tourne, pour voir la route devant
             float carY = view == MiniMap.VIEW_3D ? 0.74f : view == MiniMap.VIEW_FLAT ? 0.70f : 0.5f;
             int above = Math.round(carY * bh), mw = bw, mh = bh, left = 0, top = 0;
-            float centerY = carY;
-            if (view == MiniMap.VIEW_3D) {
-                // Vue inclinée : la carte est plus grande que le cadre, puis penchée (comme une caméra derrière la voiture).
-                // Le haut s'éloigne et rétrécit : il faut plus de carte devant, et un peu sur les côtés.
-                int ahead = Math.round(above * 2.5f), behind = Math.round(bh * 0.42f);
-                mw = Math.round(bw * 1.7f);
-                mh = ahead + behind;
+            // La voiture reste au centre de la carte (le plus simple et le plus sûr pour la faire tourner) :
+            // c'est la carte, plus haute que le cadre, qui est placée pour que la voiture tombe plus bas.
+            if (view == MiniMap.VIEW_FLAT) {
+                mh = 2 * above;
+            } else if (view == MiniMap.VIEW_3D) {
+                // Vue inclinée : la carte est penchée de 40° (comme une caméra derrière la voiture). Le haut
+                // s'éloigne et rétrécit : il faut plus de carte devant et un peu sur les côtés.
+                int ahead = Math.round(above * 1.8f);
+                mw = Math.round(bw * 1.3f);
+                mh = 2 * ahead;
                 left = (bw - mw) / 2;
                 top = above - ahead;
-                centerY = ahead / (float) mh;
             }
+            float centerY = 0.5f;
             MapView mv = mini.create(a, view, night, centerY);
             if (mv != null) {
                 MiniMap.Frame fr = new MiniMap.Frame(a);
@@ -363,9 +366,9 @@ final class DriveScreen extends Screen {
                 fr.addView(mv, mlp);
                 if (view == MiniMap.VIEW_3D) {
                     mv.setPivotX(mw / 2f);
-                    mv.setPivotY(mh * centerY);
+                    mv.setPivotY(mh / 2f);
                     mv.setCameraDistance(1280f * bh / 360f); // même perspective quelle que soit la taille de l'écran
-                    mv.setRotationX(50f);
+                    mv.setRotationX(40f);
                 }
                 mapBox.addView(fr, 0, new FrameLayout.LayoutParams(U.M, U.M));
                 if (view == MiniMap.VIEW_NORTH) {
