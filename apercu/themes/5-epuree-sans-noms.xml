@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Aperçu de style pour la minimap du Launcher 208 : épurée (claire, façon Tesla) -->
+<rendertheme xmlns="http://mapsforge.org/renderTheme" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://mapsforge.org/renderTheme https://raw.githubusercontent.com/mapsforge/mapsforge/master/resources/renderTheme.xsd"
+    version="5" map-background="#EEF0F2" map-background-outside="#EEF0F2">
+
+    <rule e="way" k="natural" v="issea|sea"><area fill="#C6DBEF" /></rule>
+    <rule e="way" k="natural" v="nosea"><area fill="#EEF0F2" stroke="#EEF0F2" stroke-width="1.0" /></rule>
+    <rule e="way" k="leisure|landuse|natural" v="park|garden|recreation_ground|village_green|grass|meadow|grassland|cemetery|allotments|scrub|heath" zoom-min="10">
+        <area fill="#DDEAD8" />
+    </rule>
+    <rule e="way" k="landuse|natural" v="forest|wood" zoom-min="10"><area fill="#D3E5CC" /></rule>
+    <rule e="way" k="natural|landuse|waterway" v="water|reservoir|basin|riverbank"><area fill="#C6DBEF" /></rule>
+    <rule e="way" k="waterway" v="river|canal"><line stroke="#C6DBEF" stroke-width="2.4" /></rule>
+    <rule e="way" k="waterway" v="stream" zoom-min="14"><line stroke="#C6DBEF" stroke-width="0.9" /></rule>
+    <rule e="way" k="building" v="*" zoom-min="16"><area fill="#E7E9EC" /></rule>
+    <rule e="way" k="railway" v="rail" zoom-min="12"><line stroke="#D2D6DB" stroke-width="0.9" stroke-linecap="butt" /></rule>
+
+    <rule e="way" k="area" v="~|no|false">
+        <rule e="way" k="highway" v="*">
+            <rule e="way" k="highway" v="service|track" zoom-min="15"><line stroke="#DFE2E6" stroke-width="2.0" stroke-linecap="round" /></rule>
+            <rule e="way" k="highway" v="residential|unclassified|living_street|road|pedestrian" zoom-min="13"><line stroke="#DFE2E6" stroke-width="3.4000000000000004" stroke-linecap="round" /></rule>
+            <rule e="way" k="highway" v="tertiary|tertiary_link|secondary|secondary_link" zoom-min="11"><line stroke="#D9DDE2" stroke-width="4.7" stroke-linecap="round" /></rule>
+            <rule e="way" k="highway" v="primary|primary_link|trunk|trunk_link"><line stroke="#CBD1D9" stroke-width="6.0" stroke-linecap="round" /></rule>
+            <rule e="way" k="highway" v="motorway|motorway_link"><line stroke="#B9C7DD" stroke-width="6.6" stroke-linecap="round" /></rule>
+
+            <rule e="way" k="highway" v="service|track" zoom-min="15"><line stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" /></rule>
+            <rule e="way" k="highway" v="residential|unclassified|living_street|road|pedestrian" zoom-min="13"><line stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" /></rule>
+            <rule e="way" k="highway" v="tertiary|tertiary_link|secondary|secondary_link" zoom-min="11"><line stroke="#FFFFFF" stroke-width="3.8" stroke-linecap="round" /></rule>
+            <rule e="way" k="highway" v="primary|primary_link|trunk|trunk_link"><line stroke="#FFFFFF" stroke-width="5.0" stroke-linecap="round" /></rule>
+            <rule e="way" k="highway" v="motorway|motorway_link"><line stroke="#DCE5F3" stroke-width="5.6" stroke-linecap="round" /></rule>
+        </rule>
+    </rule>
+</rendertheme>
