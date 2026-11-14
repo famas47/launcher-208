@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Seulement pour les aperçus de la carte (pas utilisé par l'appli) : récupère le moteur Mapsforge pour ordinateur. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>be.pa</groupId>
+    <artifactId>apercu-carte</artifactId>
+    <version>1</version>
+    <dependencies>
+        <dependency>
+            <groupId>org.mapsforge</groupId>
+            <artifactId>mapsforge-map-awt</artifactId>
+            <version>${mapsforge.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mapsforge</groupId>
+            <artifactId>mapsforge-map-reader</artifactId>
+            <version>${mapsforge.version}</version>
+        </dependency>
+    </dependencies>
+</project>
