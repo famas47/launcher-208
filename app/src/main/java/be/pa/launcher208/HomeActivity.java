@@ -486,7 +486,7 @@ public class HomeActivity extends Activity {
                     + " | kmh=" + P.driveKmh() + " | vol=" + App.I.vol.get() + "/" + App.I.vol.max() + " methode=" + P.volMethod()
                     + " fixe=" + App.I.vol.fixed() + " err=" + App.I.vol.lastError + " | carplay_auto=" + P.carplayAuto()
                     + " | bt=" + (BtPower.present(this) ? (BtPower.isOn(this) ? "on" : "off") : "absent") + " btlast=" + BtPower.last
-                    + " | cp_action=" + PhoneWatch.lastAction);
+                    + " | cp_action=" + PhoneWatch.lastAction + " | cap=" + Math.round(App.I.loc.bearing));
         }
         if (i.hasExtra("test_info")) root.post(new Runnable() {
             @Override public void run() { testLog(root); }

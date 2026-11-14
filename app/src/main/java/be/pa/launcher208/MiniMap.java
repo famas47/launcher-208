@@ -225,9 +225,20 @@ final class MiniMap {
             dispLon += dLon * k;
         }
         try {
-            mv.getModel().mapViewPosition.setCenter(new LatLong(dispLat, dispLon));
-            if (view != VIEW_NORTH) {
-                mv.getModel().mapViewPosition.setRotation(new Rotation(-dispBear, mv.getWidth() * 0.5f, mv.getHeight() * centerY));
+            org.mapsforge.map.model.MapViewPosition pos = mv.getModel().mapViewPosition;
+            LatLong ll = new LatLong(dispLat, dispLon);
+            if (view == VIEW_NORTH) {
+                pos.setCenter(ll);
+            } else {
+                Rotation rot = new Rotation(-dispBear, mv.getWidth() * 0.5f, mv.getHeight() * centerY);
+                if (pos.animationInProgress()) {
+                    // changement de zoom en cours : on ne le coupe pas
+                    pos.setCenter(ll);
+                    pos.setRotation(rot);
+                } else {
+                    // position et rotation en une seule fois : un seul nouveau dessin de la carte
+                    pos.setMapPosition(new org.mapsforge.core.model.MapPosition(ll, pos.getZoomLevel(), rot), false);
+                }
             }
         } catch (Throwable ignored) { }
         if (headingListener != null) headingListener.onHeading(dispBear);

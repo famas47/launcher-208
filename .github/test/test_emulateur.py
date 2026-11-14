@@ -375,6 +375,7 @@ for vue, couleurs, nom in ((1, 0, 'a-plat'), (2, 0, 'nord-en-haut'), (0, 2, '3d-
         adb('emu geo fix %.6f %.6f' % (lon, lat))
         time.sleep(1)
     shot('13-carte-' + nom, 0.5)
+    etat('vue %s : cap calculé (doit être vers 90 = est)' % nom, 0)
 hook(vitesse=-1)
 time.sleep(1)
 hook(carte_vue=0, carte_couleurs=0)
