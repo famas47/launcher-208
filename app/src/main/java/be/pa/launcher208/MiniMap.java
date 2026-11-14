@@ -1,10 +1,13 @@
 package be.pa.launcher208;
 
 import android.content.Context;
+import android.os.SystemClock;
 import android.view.MotionEvent;
+import android.view.View;
 import android.widget.FrameLayout;
 
 import org.mapsforge.core.model.LatLong;
+import org.mapsforge.core.model.Rotation;
 import org.mapsforge.core.model.Tag;
 import org.mapsforge.core.model.Tile;
 import org.mapsforge.core.util.MercatorProjection;
@@ -17,6 +20,7 @@ import org.mapsforge.map.datastore.MapReadResult;
 import org.mapsforge.map.datastore.Way;
 import org.mapsforge.map.layer.cache.InMemoryTileCache;
 import org.mapsforge.map.layer.cache.TileCache;
+import org.mapsforge.map.layer.labels.ThreadedLabelLayer;
 import org.mapsforge.map.layer.renderer.TileRendererLayer;
 import org.mapsforge.map.reader.MapFile;
 
@@ -25,8 +29,29 @@ import java.io.File;
 /**
  * Minimap hors ligne (carte OpenStreetMap de Belgique, dessinée sur l'autoradio).
  * Créée seulement quand le mode conduite s'affiche, détruite ensuite : rien ne tourne en dehors.
+ *
+ * Trois vues : 3D (inclinée, tourne avec la voiture, façon Tesla), à plat qui tourne, ou nord en haut.
+ * Pour voir la voiture avancer en continu, la position est prolongée entre deux points GPS (vitesse et cap)
+ * et lissée, environ 30 fois par seconde, seulement quand la voiture roule.
  */
 final class MiniMap {
+    static final int VIEW_3D = 0, VIEW_FLAT = 1, VIEW_NORTH = 2;
+    static final String[] VIEW_NAMES = {"3D", "À plat", "Nord en haut"};
+
+    /** Carte en couleurs de nuit (réglage « Couleurs de la carte » : auto = comme le reste de l'écran). */
+    static boolean night() {
+        int c = P.mapColors();
+        return c == 1 ? false : c == 2 ? true : Pal.night;
+    }
+
+    static int bg(boolean night) { return night ? 0xFF25282E : 0xFFEEF0F2; }
+
+    /** Appelé à chaque image avec le cap affiché (pour faire tourner la boussole). */
+    interface HeadingListener { void onHeading(float degrees); }
+
+    private int view = VIEW_NORTH;
+    private float centerY = 0.5f;
+    private HeadingListener headingListener;
     private static boolean graphicsReady;
     private MapView mv;
     private TileCache cache;
@@ -59,8 +84,16 @@ final class MiniMap {
         }
     }
 
-    /** Crée la vue carte, ou renvoie null si la carte n'est pas téléchargée ou illisible. */
-    MapView create(Context c) {
+    /** Crée la vue carte (nord en haut), ou renvoie null si la carte n'est pas téléchargée ou illisible. */
+    MapView create(Context c) { return create(c, VIEW_NORTH, Pal.night, 0.5f); }
+
+    /**
+     * Crée la vue carte, ou renvoie null si la carte n'est pas téléchargée ou illisible.
+     * centerY : hauteur de la voiture dans la vue (0,5 = au milieu ; plus bas pour voir plus loin devant).
+     */
+    MapView create(Context c, int view, boolean night, float centerY) {
+        this.view = view;
+        this.centerY = view == VIEW_NORTH ? 0.5f : centerY;
         if (!available(c)) { error = "carte non téléchargée"; return null; }
         try {
             if (!graphicsReady) {
@@ -74,22 +107,33 @@ final class MiniMap {
             mv.setClickable(false);
             mv.getMapScaleBar().setVisible(false);
             mv.setBuiltInZoomControls(false);
-            mv.getModel().displayModel.setBackgroundColor(Pal.night ? 0xFF1B1E24 : 0xFFECEFF2);
+            mv.getModel().displayModel.setBackgroundColor(bg(night));
+            boolean rotating = view != VIEW_NORTH;
             // Tuiles gardées en mémoire seulement : rien n'est écrit sur la mémoire de l'autoradio
             // (moins de travail pendant la conduite, et rien à effacer en sortant du mode conduite).
-            cache = new InMemoryTileCache(AndroidUtil.getMinimumCacheSize(c, mv.getModel().displayModel.getTileSize(),
-                    mv.getModel().frameBufferModel.getOverdrawFactor(), 1f));
+            int minCache = AndroidUtil.getMinimumCacheSize(c, mv.getModel().displayModel.getTileSize(),
+                    mv.getModel().frameBufferModel.getOverdrawFactor(), 1f);
+            // carte qui tourne : la zone dessinée est plus grande (diagonale), il faut plus de tuiles en mémoire
+            cache = new InMemoryTileCache(rotating ? Math.max(minCache, 110) : minCache);
             mapFile = new MapFile(file(c), "fr");
+            // Carte qui tourne : les noms de rues sont dessinés à part, pour rester toujours à l'endroit
             TileRendererLayer layer = new TileRendererLayer(cache, mapFile, mv.getModel().mapViewPosition,
-                    AndroidGraphicFactory.INSTANCE);
-            layer.setXmlRenderTheme(new AssetsRenderTheme(c.getAssets(), "map/", Pal.night ? "theme-nuit.xml" : "theme.xml"));
+                    false, !rotating, rotating, AndroidGraphicFactory.INSTANCE);
+            layer.setXmlRenderTheme(new AssetsRenderTheme(c.getAssets(), "map/", night ? "theme-nuit.xml" : "theme.xml"));
             mv.getLayerManager().getLayers().add(layer);
+            if (rotating) {
+                mv.getLayerManager().getLayers().add(new ThreadedLabelLayer(AndroidGraphicFactory.INSTANCE, layer.getLabelStore()));
+                mv.setMapViewCenterY(this.centerY);
+            }
             attached = true;
             mv.setZoomLevelMin((byte) 12);
             mv.setZoomLevelMax((byte) 18);
             mv.getModel().mapViewPosition.setZoomLevel((byte) 16);
             LocationTracker loc = App.I.loc;
-            mv.getModel().mapViewPosition.setCenter(new LatLong(loc.lat != 0 ? loc.lat : P.lat(), loc.lon != 0 ? loc.lon : P.lon()));
+            dispLat = loc.lat != 0 ? loc.lat : P.lat();
+            dispLon = loc.lon != 0 ? loc.lon : P.lon();
+            dispBear = loc.bearing;
+            mv.getModel().mapViewPosition.setCenter(new LatLong(dispLat, dispLon));
             error = "";
             lastError = "";
             return mv;
@@ -104,20 +148,91 @@ final class MiniMap {
     private double followLat, followLon;
     private byte followZoom;
 
+    // ---------- Mouvement continu ----------
+    private double dispLat, dispLon;   // position affichée (lissée)
+    private float dispBear;            // cap affiché (lissé)
+    private float targetBear;
+    private long lastFrame, lastApply;
+    private boolean animating;
+
+    void setHeadingListener(HeadingListener l) { headingListener = l; }
+
+    float heading() { return dispBear; }
+
+    /** Appelé chaque seconde par l'écran de conduite : zoom selon la vitesse, nom de la rue, et relance du mouvement. */
     void follow(double lat, double lon, float kmh) {
         if (mv == null || (lat == 0 && lon == 0)) return;
         byte z = kmh > 90 ? (byte) 14 : kmh > 55 ? (byte) 15 : (byte) 16;
-        if (lat == followLat && lon == followLon && z == followZoom) return; // rien n'a bougé : pas de calcul
-        followLat = lat;
-        followLon = lon;
-        followZoom = z;
+        if (z != followZoom) {
+            followZoom = z;
+            try {
+                if (mv.getModel().mapViewPosition.getZoomLevel() != z) mv.getModel().mapViewPosition.setZoomLevel(z, true);
+            } catch (Throwable ignored) { }
+        }
+        if (kmh > 4) targetBear = App.I.loc.bearing;
+        if (lat != followLat || lon != followLon) {
+            followLat = lat;
+            followLon = lon;
+            lookupStreet(lat, lon);
+        }
+        startAnimation();
+    }
+
+    private void startAnimation() {
+        if (animating || mv == null) return;
+        animating = true;
+        lastFrame = 0;
+        mv.postOnAnimation(frame);
+    }
+
+    private final Runnable frame = new Runnable() {
+        @Override public void run() {
+            if (mv == null || destroyed) { animating = false; return; }
+            long now = SystemClock.uptimeMillis();
+            // environ 30 images par seconde : assez pour un mouvement fluide, sans charger l'autoradio
+            if (lastApply != 0 && now - lastApply < 30) { mv.postOnAnimation(this); return; }
+            float dt = lastFrame == 0 ? 0.033f : Math.min(0.2f, (now - lastFrame) / 1000f);
+            lastFrame = now;
+            lastApply = now;
+            boolean busy = step(now, dt);
+            if (busy) mv.postOnAnimation(this);
+            else animating = false; // voiture arrêtée et carte immobile : plus rien ne tourne
+        }
+    };
+
+    /** Une image : prolonge la position GPS selon la vitesse, lisse, et place la carte. Renvoie vrai s'il faut continuer. */
+    private boolean step(long now, float dt) {
+        LocationTracker l = App.I.loc;
+        if (l.lat == 0 && l.lon == 0) return false;
+        float kmh = App.I.speed();
+        // cap visé : lissé, par le chemin le plus court (359° → 1° tourne de 2°, pas de 358°)
+        float db = ((targetBear - dispBear + 540f) % 360f) - 180f;
+        dispBear = (dispBear + db * (1f - (float) Math.exp(-dt / 0.6f)) + 360f) % 360f;
+        // position prévue : le dernier point GPS, avancé de la distance parcourue depuis (au plus 2 s)
+        double pLat = l.lat, pLon = l.lon;
+        if (kmh > 2 && l.lastFixUptime > 0) {
+            double age = Math.min(2.0, (now - l.lastFixUptime) / 1000.0);
+            double m = kmh / 3.6 * age, b = Math.toRadians(l.bearing);
+            pLat += m * Math.cos(b) / 110540.0;
+            pLon += m * Math.sin(b) / (111320.0 * Math.cos(Math.toRadians(l.lat)));
+        }
+        double dLat = pLat - dispLat, dLon = pLon - dispLon;
+        double distM = Math.hypot(dLat * 110540.0, dLon * 111320.0 * Math.cos(Math.toRadians(pLat)));
+        if (distM > 150) { dispLat = pLat; dispLon = pLon; }          // grand saut (GPS retrouvé) : pas d'animation
+        else {
+            double k = 1.0 - Math.exp(-dt / 0.35);
+            dispLat += dLat * k;
+            dispLon += dLon * k;
+        }
         try {
-            LatLong ll = new LatLong(lat, lon);
-            if (P.fluidMax()) mv.getModel().mapViewPosition.animateTo(ll);
-            else mv.getModel().mapViewPosition.setCenter(ll);
-            if (mv.getModel().mapViewPosition.getZoomLevel() != z) mv.getModel().mapViewPosition.setZoomLevel(z, P.fluidMax());
+            mv.getModel().mapViewPosition.setCenter(new LatLong(dispLat, dispLon));
+            if (view != VIEW_NORTH) {
+                mv.getModel().mapViewPosition.setRotation(new Rotation(-dispBear, mv.getWidth() * 0.5f, mv.getHeight() * centerY));
+            }
         } catch (Throwable ignored) { }
-        lookupStreet(lat, lon);
+        if (headingListener != null) headingListener.onHeading(dispBear);
+        boolean moving = kmh > 1 || distM > 0.3 || Math.abs(db) > 0.3f;
+        return moving;
     }
 
     /** Nom de la rue la plus proche, lu dans la carte (en arrière-plan, au plus tous les 25 m). */

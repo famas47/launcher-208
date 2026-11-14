@@ -200,6 +200,12 @@ final class SettingsScreen extends Screen {
         })), true);
         add(s, row("Minimap", "Carte de la Belgique hors ligne", new Widgets.Toggle(a, P.minimap(), new Widgets.BoolCb() {
             @Override public void on(boolean v) { P.put(P.MINIMAP, v); }
+        })), true);
+        add(s, row("Vue de la carte", "« 3D » : comme une Tesla", Widgets.seg(a, MiniMap.VIEW_NAMES, P.mapView(), new Widgets.IntCb() {
+            @Override public void on(int v) { P.put(P.MAP_VIEW, v); }
+        })), true);
+        add(s, row("Couleurs de la carte", "« Auto » : jour ou nuit comme l'écran", Widgets.seg(a, new String[]{"Auto", "Jour", "Nuit"}, P.mapColors(), new Widgets.IntCb() {
+            @Override public void on(int v) { P.put(P.MAP_COLORS, v); }
         })), false);
 
         s = section(c2, "Carte de Belgique");

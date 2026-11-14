@@ -358,10 +358,27 @@ if len(dm) >= 2:
         log('    %-35s +%d ms' % (what, int(ms) - t0))
 shot('13-conduite', 0.5)
 rues = re.findall(r'Test208\s*: (rue .*)', adb('logcat -d -s Test208:I'))
+
 log('  noms de rue trouvés pendant le trajet (position, sens, choix | candidates distance/note) :')
 for l_ in rues[-6:]:
     log('    ' + l_[:400])
 memory('conduite avec la carte')
+# ---------- Les 3 vues de la carte (3D par défaut, à plat, nord en haut) + couleurs de nuit forcées ----------
+for vue, couleurs, nom in ((1, 0, 'a-plat'), (2, 0, 'nord-en-haut'), (0, 2, '3d-nuit-forcee')):
+    hook(vitesse=-1)
+    time.sleep(1.5)
+    hook(carte_vue=vue, carte_couleurs=couleurs)
+    hook(vitesse=50)
+    time.sleep(3)
+    for k in range(6):
+        lon += 0.000197
+        adb('emu geo fix %.6f %.6f' % (lon, lat))
+        time.sleep(1)
+    shot('13-carte-' + nom, 0.5)
+hook(vitesse=-1)
+time.sleep(1)
+hook(carte_vue=0, carte_couleurs=0)
+log('  vues de la carte : captures 13-carte-a-plat, 13-carte-nord-en-haut, 13-carte-3d-nuit-forcee')
 hook(vitesse=-1)
 shot('14-retour-accueil', 2)
 hook(onglet=1)

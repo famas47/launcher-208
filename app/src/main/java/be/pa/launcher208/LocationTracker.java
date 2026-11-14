@@ -140,6 +140,11 @@ final class LocationTracker implements LocationListener {
         if (kmh < floor) kmh = 0;
         speedKmh = kmh;
         if (l.hasBearing() && kmh > 3) bearing = l.getBearing();
+        else if (!l.hasBearing() && kmh > 3 && prev != null && prev.distanceTo(l) > 5f) {
+            // GPS sans cap : on le calcule à partir du point précédent (utile pour la carte qui tourne)
+            float b = prev.bearingTo(l);
+            bearing = b < 0 ? b + 360f : b;
+        }
         accuracy = l.hasAccuracy() ? l.getAccuracy() : -1;
         lat = l.getLatitude();
         lon = l.getLongitude();

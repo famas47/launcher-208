@@ -460,6 +460,8 @@ public class HomeActivity extends Activity {
         if (i.hasExtra("test_ecoute_resultat")) {
             android.util.Log.i("Test208", "ecoute volume : " + VolumeSpy.text().replace("\n", " | "));
         }
+        if (i.hasExtra("test_carte_vue")) P.put(P.MAP_VIEW, i.getIntExtra("test_carte_vue", 0));
+        if (i.hasExtra("test_carte_couleurs")) P.put(P.MAP_COLORS, i.getIntExtra("test_carte_couleurs", 0));
         if (i.hasExtra("test_kmh")) P.put(P.DRIVE_KMH, i.getIntExtra("test_kmh", 1));
         if (i.hasExtra("test_vol_methode")) P.put(P.VOL_METHOD, i.getIntExtra("test_vol_methode", 0));
         if (i.hasExtra("test_vol_pas")) App.I.vol.step(i.getIntExtra("test_vol_pas", 1));

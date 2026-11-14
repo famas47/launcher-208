@@ -22,6 +22,7 @@ final class DriveScreen extends Screen {
     private FrameLayout mapBox;
     private MiniMap mini;
     private Widgets.Marker marker;
+    private TextView north;
     private ImageView playIcon;
     private boolean withMap, shown, mapPending;
     private int lastSpeed = Integer.MIN_VALUE, radioPoll; // -1 = vitesse inconnue (tiret)
@@ -92,7 +93,7 @@ final class DriveScreen extends Screen {
         c.addView(U.flexV(a));
 
         mapBox = new FrameLayout(a);
-        mapBox.setBackground(U.rr(Pal.night ? 0xFF1B1E24 : 0xFFECEFF2, 22));
+        mapBox.setBackground(U.rr(MiniMap.bg(MiniMap.night()), 22));
         mapBox.setClipToOutline(true);
         U.shadow(mapBox, 6);
         mapMsg = U.tvMulti(a, "Carte indisponible.\nRéglages → Carte de Belgique", 15, Pal.text2, 500, 2);
@@ -101,7 +102,7 @@ final class DriveScreen extends Screen {
         mapStreet = pill("", 14, 600);
         mapStreet.setMaxWidth(U.s(540));
         mapBox.addView(mapStreet, U.flm(U.WR, U.s(36), Gravity.TOP | Gravity.LEFT, 14, 14, 0, 0));
-        TextView north = U.tv(a, "N", 15, 0xFFDC2626, 700);
+        north = U.tv(a, "N", 15, 0xFFDC2626, 700);
         north.setGravity(Gravity.CENTER);
         north.setBackground(U.oval(Pal.card));
         U.shadow(north, 3);
@@ -334,13 +335,71 @@ final class DriveScreen extends Screen {
             if (!shown || mini != null || mapBox == null) return;
             App.mark("conduite : création de la carte");
             mini = new MiniMap();
-            MapView mv = mini.create(a);
+            int view = P.mapView();
+            boolean night = MiniMap.night();
+            int bw = mapBox.getWidth(), bh = mapBox.getHeight();
+            if (bw <= 0 || bh <= 0) { bw = U.s(680); bh = U.s(360); }
+            // hauteur de la voiture dans le cadre : plus bas quand la carte tourne, pour voir la route devant
+            float carY = view == MiniMap.VIEW_3D ? 0.74f : view == MiniMap.VIEW_FLAT ? 0.70f : 0.5f;
+            int above = Math.round(carY * bh), mw = bw, mh = bh, left = 0, top = 0;
+            float centerY = carY;
+            if (view == MiniMap.VIEW_3D) {
+                // Vue inclinée : la carte est plus grande que le cadre, puis penchée (comme une caméra derrière la voiture).
+                // Le haut s'éloigne et rétrécit : il faut plus de carte devant, et un peu sur les côtés.
+                int ahead = Math.round(above * 2.5f), behind = Math.round(bh * 0.42f);
+                mw = Math.round(bw * 1.7f);
+                mh = ahead + behind;
+                left = (bw - mw) / 2;
+                top = above - ahead;
+                centerY = ahead / (float) mh;
+            }
+            MapView mv = mini.create(a, view, night, centerY);
             if (mv != null) {
                 MiniMap.Frame fr = new MiniMap.Frame(a);
-                fr.addView(mv, new FrameLayout.LayoutParams(U.M, U.M));
+                fr.setClipChildren(false);
+                FrameLayout.LayoutParams mlp = new FrameLayout.LayoutParams(mw, mh);
+                mlp.leftMargin = left;
+                mlp.topMargin = top;
+                fr.addView(mv, mlp);
+                if (view == MiniMap.VIEW_3D) {
+                    mv.setPivotX(mw / 2f);
+                    mv.setPivotY(mh * centerY);
+                    mv.setCameraDistance(1280f * bh / 360f); // même perspective quelle que soit la taille de l'écran
+                    mv.setRotationX(50f);
+                }
                 mapBox.addView(fr, 0, new FrameLayout.LayoutParams(U.M, U.M));
-                marker = new Widgets.Marker(a);
-                mapBox.addView(marker, 1, U.flm(U.s(84), U.s(84), Gravity.CENTER, 0, 0, 0, 0));
+                if (view == MiniMap.VIEW_NORTH) {
+                    marker = new Widgets.Marker(a);
+                    mapBox.addView(marker, 1, U.flm(U.s(84), U.s(84), Gravity.CENTER, 0, 0, 0, 0));
+                } else {
+                    // ta 208 vue de derrière, posée sur la route, avec un léger halo bleu dessous
+                    View glow = new View(a);
+                    android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+                    g.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+                    g.setGradientType(android.graphics.drawable.GradientDrawable.RADIAL_GRADIENT);
+                    g.setGradientRadius(U.s(36));
+                    g.setColors(new int[]{night ? 0x663B82F6 : 0x4D3B82F6, 0x003B82F6});
+                    glow.setBackground(g);
+                    int gw = U.s(76), gh = U.s(52);
+                    FrameLayout.LayoutParams glp = new FrameLayout.LayoutParams(gw, gh);
+                    glp.leftMargin = bw / 2 - gw / 2;
+                    glp.topMargin = above - gh / 2 + U.s(6);
+                    mapBox.addView(glow, 1, glp);
+                    android.widget.ImageView car = new android.widget.ImageView(a);
+                    car.setImageResource(R.drawable.car_chase);
+                    car.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+                    car.setContentDescription("Ta voiture");
+                    int cw = U.s(72), ch = U.s(99);
+                    FrameLayout.LayoutParams clp = new FrameLayout.LayoutParams(cw, ch);
+                    clp.leftMargin = bw / 2 - cw / 2;
+                    clp.topMargin = above - Math.round(ch * 0.486f);
+                    mapBox.addView(car, 2, clp);
+                    if (north != null) {
+                        mini.setHeadingListener(new MiniMap.HeadingListener() {
+                            @Override public void onHeading(float d) { north.setRotation(-d); }
+                        });
+                    }
+                }
                 LocationTracker l = App.I.loc;
                 mini.follow(l.lat, l.lon, App.I.speed());
             } else {
@@ -359,8 +418,9 @@ final class DriveScreen extends Screen {
             mini.destroy();
             mini = null;
             if (mapBox != null) {
-                // Enlève la carte et la flèche (on garde les étiquettes)
+                // Enlève la carte, la voiture ou la flèche (on garde les étiquettes)
                 while (mapBox.getChildCount() > 5) mapBox.removeViewAt(0);
+                if (north != null) north.setRotation(0);
             }
             marker = null;
         }
