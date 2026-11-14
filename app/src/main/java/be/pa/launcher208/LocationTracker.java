@@ -139,11 +139,14 @@ final class LocationTracker implements LocationListener {
         float floor = doppler ? Math.min(2f, P.driveKmh()) : 2f;
         if (kmh < floor) kmh = 0;
         speedKmh = kmh;
-        if (l.hasBearing() && kmh > 3) bearing = l.getBearing();
-        else if (!l.hasBearing() && kmh > 3 && prev != null && prev.distanceTo(l) > 5f) {
-            // GPS sans cap : on le calcule à partir du point précédent (utile pour la carte qui tourne)
-            float b = prev.bearingTo(l);
-            bearing = b < 0 ? b + 360f : b;
+        if (kmh > 3) {
+            // Cap de la puce GPS s'il est donné ; certaines puces annoncent un cap mais renvoient toujours 0 :
+            // dans ce cas (ou sans cap), on le calcule à partir du point précédent (pour la carte qui tourne).
+            if (l.hasBearing() && l.getBearing() != 0f) bearing = l.getBearing();
+            else if (prev != null && prev.distanceTo(l) > 5f) {
+                float b = prev.bearingTo(l);
+                bearing = b < 0 ? b + 360f : b;
+            }
         }
         accuracy = l.hasAccuracy() ? l.getAccuracy() : -1;
         lat = l.getLatitude();
