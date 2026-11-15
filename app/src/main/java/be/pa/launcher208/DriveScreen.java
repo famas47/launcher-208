@@ -391,8 +391,9 @@ final class DriveScreen extends Screen {
             }
         }
         if (mapStreet != null && n.active) mapStreet.setVisibility(View.GONE);
-        if (mapTrip != null && n.active && !n.arrived) {
-            U.text(mapTrip, Nav.dist(n.remainingM) + "   ·   " + Fmt.dur(Math.max(1, Math.round(n.remainingS / 60)))
+        if (mapTrip != null && n.active) {
+            U.text(mapTrip, n.arrived ? "Arrivée à " + Fmt.hhmm(n.arrivedClock)
+                    : Nav.dist(n.remainingM) + "   ·   " + Fmt.dur(Math.max(1, Math.round(n.remainingS / 60)))
                     + "   ·   " + Fmt.hhmm(n.arrival()));
         }
         if (mini != null) mini.syncRoute();

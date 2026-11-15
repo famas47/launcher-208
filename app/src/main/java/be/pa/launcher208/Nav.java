@@ -36,6 +36,8 @@ final class Nav {
     volatile int limit;
     /** Distance (m) entre la dernière position et l'itinéraire, calculée par pathAhead. */
     double aheadD;
+    /** Heure d'arrivée réelle (ms, heure de l'autoradio). */
+    long arrivedClock;
 
     private List<Guide.Step> steps;
     private int stepIdx;
@@ -162,6 +164,7 @@ final class Nav {
             if (remainingM < 25 || toDest < 25) {
                 arrived = true;
                 arrivedAt = now;
+                arrivedClock = Clock.now();
                 remainingM = 0;
                 remainingS = 0;
                 next = null;

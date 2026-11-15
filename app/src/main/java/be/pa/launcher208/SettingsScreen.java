@@ -146,7 +146,8 @@ final class SettingsScreen extends Screen {
         version = U.tv(a, "", 13, Pal.text, 500);
         s.addView(version, U.lpm(U.WR, U.WR, 0, 4, 0, 0));
         TextView cred = U.tvMulti(a, "Modèle 3D « Peugeot 208 2017 » par luizantonix, licence CC BY-NC-SA · "
-                + "Carte © les contributeurs d'OpenStreetMap · Moteur de carte Mapsforge (LGPL) · Météo Open-Meteo", 12, Pal.text2, 400, 4);
+                + "Carte et navigation © les contributeurs d'OpenStreetMap (ODbL) · Moteur de carte Mapsforge (LGPL) · Météo Open-Meteo"
+                + " · Voix du guidage « Siwis » (Piper, base SIWIS, CC BY 4.0)", 12, Pal.text2, 400, 5);
         s.addView(cred, U.lpm(U.M, U.WR, 0, 4, 0, 8));
         updStatus = U.tvMulti(a, "", 12, Pal.text2, 400, 2);
         s.addView(updStatus, U.lpm(U.M, U.WR, 0, 0, 0, 8));
@@ -243,9 +244,11 @@ final class SettingsScreen extends Screen {
         add(s, row("Voix du guidage", "« Dans 300 mètres, tourne à droite »", new Widgets.Toggle(a, P.navVoice(), new Widgets.BoolCb() {
             @Override public void on(boolean v) { P.put(P.NAV_VOICE, v); if (!v) App.I.nav.voice.stop(); }
         })), true);
-        add(s, row("Écouter la voix", "Pour vérifier à l'arrêt que tu l'entends bien", actionBtn("Écouter", Pal.card2, Pal.text, new Runnable() {
+        TextView listen = actionBtn("Écouter", Pal.card2, Pal.text, new Runnable() {
             @Override public void run() { App.I.nav.voice.test(); }
-        })), true);
+        });
+        listen.setLayoutParams(U.lp(U.WR, U.s(42)));
+        add(s, row("Écouter la voix", "Pour vérifier à l'arrêt que tu l'entends bien", listen), true);
         add(s, row("Voix par le son de la musique", "Si tu n'entends pas la voix du guidage", new Widgets.Toggle(a, P.navVoiceMedia(), new Widgets.BoolCb() {
             @Override public void on(boolean v) { P.put(P.NAV_VOICE_MEDIA, v); App.I.nav.voice.test(); }
         })), true);
