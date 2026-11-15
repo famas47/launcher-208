@@ -40,6 +40,9 @@ final class P {
     static final String MAP_VIEW = "mapView";          // vue de la carte : MiniMap.VIEW_*
     static final String MAP_SNAP = "mapSnap";          // voiture collée à la route sur la carte
     static final String NAV_RECENT = "navRecent";      // dernières destinations (JSON)
+    static final String NAV_VOICE = "navVoice";        // voix du guidage
+    static final String NAV_VOICE_MEDIA = "navVoiceMedia"; // voix par le son de la musique (si l'autre est muet)
+    static final String SPEED_SIGNS = "speedSigns";    // panneau de limitation de vitesse
     static final String MINIMAP = "minimap";
     // Voiture
     static final String ODO_BASE = "odoBase";          // km saisis
@@ -124,6 +127,9 @@ final class P {
     static int driveKmh() { return i(DRIVE_KMH, 1); }
     static int mapColors() { return i(MAP_COLORS, 0); }
     static boolean mapSnap() { return b(MAP_SNAP, true); }
+    static boolean navVoice() { return b(NAV_VOICE, true); }
+    static boolean navVoiceMedia() { return b(NAV_VOICE_MEDIA, false); }
+    static boolean speedSigns() { return b(SPEED_SIGNS, true); }
     static int mapView() { int v = i(MAP_VIEW, MiniMap.VIEW_3D); return v >= 0 && v <= 2 ? v : MiniMap.VIEW_3D; }
     static boolean minimap() { return b(MINIMAP, true); }
     static int volMethod() { int m = i(VOL_METHOD, Volume.M_MUSIC); return m >= 0 && m < Volume.NAMES.length ? m : Volume.M_MUSIC; }

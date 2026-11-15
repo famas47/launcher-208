@@ -102,6 +102,23 @@ def parse_speed(v):
     return None
 
 
+def legal_limit(tags, hw, direction):
+    """Limitation de vitesse affichée sur les panneaux (km/h) dans un sens (forward/backward), 0 si inconnue."""
+    for k in ('maxspeed:' + direction, 'maxspeed'):
+        v = parse_speed(tags.get(k))
+        if v:
+            return v
+    for k in ('maxspeed:type', 'source:maxspeed', 'zone:maxspeed'):
+        v = parse_speed(tags.get(k))
+        if v:
+            return v
+    if hw == 'motorway':
+        return 120
+    if hw == 'living_street':
+        return 20
+    return 0
+
+
 def speed_kmh(tags, hw):
     s = parse_speed(tags.get('maxspeed:forward')) or parse_speed(tags.get('maxspeed')) or ROADS[hw][1]
     if hw == 'service' and tags.get('service') in ('parking_aisle', 'driveway', 'drive-through'):
@@ -283,7 +300,9 @@ def main():
                         node_lat.append(int(round(n.lat * E6)))
                         node_lon.append(int(round(n.lon * E6)))
                     way_nodes_start.append(len(node_ids))
-                    way_info.append((ROADS[hw][0], speed_kmh(t, hw), oneway(t), t.get('name') or t.get('ref') or ''))
+                    way_info.append((ROADS[hw][0], speed_kmh(t, hw), oneway(t), t.get('name') or t.get('ref') or '',
+                                     t.get('junction') in ('roundabout', 'circular'), hw.endswith('_link'),
+                                     legal_limit(t, hw, 'forward'), legal_limit(t, hw, 'backward')))
             # rue (aussi piétonne) pour la recherche
             if hw is not None and t.get('name') and hw not in ('footway', 'path', 'cycleway', 'steps', 'bridleway',
                                                                 'track', 'proposed', 'construction', 'platform', 'corridor'):
@@ -360,6 +379,8 @@ def build_routes(path, way_ids, way_nodes_start, node_ids, node_lat, node_lon, w
     junction.update(ids[starts[1:] - 1].tolist())
     junction.update(blocked)
     log('carrefours : %d' % len(junction))
+    known = sum(1 for wi in way_info if wi[6] or wi[7])
+    log('routes avec limitation de vitesse connue : %d sur %d' % (known, len(way_info)))
 
     node_index = {}
     j_lat, j_lon, j_flag = [], [], []
@@ -374,7 +395,7 @@ def build_routes(path, way_ids, way_nodes_start, node_ids, node_lat, node_lon, w
             j_flag.append(1 if osm_id in blocked else 0)
         return k
 
-    e_u, e_v, e_len, e_speed, e_flags, e_name, e_way = [], [], [], [], [], [], []
+    e_u, e_v, e_len, e_speed, e_flags, e_name, e_way, e_vf, e_vb = [], [], [], [], [], [], [], [], []
     geo_start = [0]
     g_lat, g_lon = [], []
     names = {'': 0}
@@ -384,13 +405,13 @@ def build_routes(path, way_ids, way_nodes_start, node_ids, node_lat, node_lon, w
     lon_l = lon.tolist()
     for w in range(len(way_ids)):
         a, b = int(starts[w]), int(starts[w + 1])
-        rank, spd, ow, name = way_info[w]
+        rank, spd, ow, name, rbt, link, vf, vb = way_info[w]
         nm = names.get(name)
         if nm is None:
             nm = len(name_list)
             names[name] = nm
             name_list.append(name)
-        flags = (1 if ow >= 0 else 0) | (2 if ow <= 0 else 0) | (rank << 2)
+        flags = (1 if ow >= 0 else 0) | (2 if ow <= 0 else 0) | (rank << 2) | (64 if rbt else 0) | (128 if link else 0)
         seg_start = a
         length = 0.0
         for i in range(a + 1, b):
@@ -406,6 +427,8 @@ def build_routes(path, way_ids, way_nodes_start, node_ids, node_lat, node_lon, w
                     e_flags.append(flags)
                     e_name.append(nm)
                     e_way.append(way_ids[w])
+                    e_vf.append(min(255, vf))
+                    e_vb.append(min(255, vb))
                     for k in range(seg_start + 1, i):
                         g_lat.append(lat_l[k])
                         g_lon.append(lon_l[k])
@@ -531,6 +554,8 @@ def build_routes(path, way_ids, way_nodes_start, node_ids, node_lat, node_lon, w
         np.array([b[2] for b in bans], dtype=np.int32),
         cell_start, cell_edges,
         np.array(name_start, dtype=np.int32), np.frombuffer(bytes(name_bytes), dtype=np.uint8),
+        # ajoutés ensuite (les anciennes versions de l'appli les ignorent) : limitations de vitesse par sens
+        np.array(e_vf, dtype=np.uint8), np.array(e_vb, dtype=np.uint8),
     ]
     counts = [n_nodes, n_edges, len(g_lat), len(name_list), len(bans), gw, gh, len(cell_edges), len(out_id),
               lat0, lon0, step]

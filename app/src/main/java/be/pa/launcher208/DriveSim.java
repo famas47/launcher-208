@@ -39,11 +39,16 @@ final class DriveSim {
     private int back, frames;
     private double pX = Double.NaN, pY, pT;
 
-    private DriveSim(double hz) { this.hz = hz; }
+    private final boolean ecart;
 
-    static void start(final double hz) {
+    private DriveSim(double hz, boolean ecart) { this.hz = hz; this.ecart = ecart; }
+
+    static void start(double hz) { start(hz, false); }
+
+    /** ecart : en navigation, la voiture quitte l'itinéraire au premier virage (elle continue tout droit). */
+    static void start(final double hz, boolean ecart) {
         if (cur != null) cur.stop("remplacé");
-        final DriveSim s = new DriveSim(hz);
+        final DriveSim s = new DriveSim(hz, ecart);
         cur = s;
         final double lat = App.I.loc.lat != 0 ? App.I.loc.lat : P.lat(), lon = App.I.loc.lon != 0 ? App.I.loc.lon : P.lon();
         new Thread(new Runnable() {
@@ -67,7 +72,30 @@ final class DriveSim {
         if (navRoute != null && navRoute.lat.length >= 2) {
             // navigation en cours : on suit son itinéraire (au plus 2,5 km)
             ArrayList<double[]> pts = new ArrayList<>();
-            for (int i = 0; i < navRoute.lat.length && navRoute.cum[i] <= 2500; i++) pts.add(new double[]{navRoute.lat[i], navRoute.lon[i]});
+            int cut = navRoute.lat.length - 1;
+            if (ecart && navRoute.steps != null) {
+                // premier vrai virage après 150 m : la voiture ne le prend pas
+                for (Guide.Step st : navRoute.steps) {
+                    if (st.at > 150 && Math.abs(st.angle) >= 60 && !st.action.equals("arrivee")) { cut = st.point; break; }
+                }
+            }
+            for (int i = 0; i <= cut && navRoute.cum[i] <= 2500; i++) pts.add(new double[]{navRoute.lat[i], navRoute.lon[i]});
+            if (ecart && pts.size() >= 2) {
+                MapFile mf = null;
+                try {
+                    mf = new MapFile(MiniMap.file(App.I), "fr");
+                    RoadSnap sn = new RoadSnap(mf);
+                    double[] q = pts.get(pts.size() - 1), o = pts.get(pts.size() - 2);
+                    double kxx = 111320.0 * Math.cos(Math.toRadians(q[0]));
+                    double b = Math.toDegrees(Math.atan2((q[1] - o[1]) * kxx, (q[0] - o[0]) * 110540.0));
+                    RoadSnap.Result r = sn.snap(q[0], q[1], b, true, 15);
+                    if (r != null) extend(pts, sn, r, 700);
+                } catch (Throwable ignored) {
+                } finally {
+                    if (mf != null) try { mf.close(); } catch (Throwable ignored) { }
+                }
+                return setRoute(pts) + " (itinéraire de la navigation, puis tout droit au lieu de tourner)";
+            }
             if (pts.size() >= 2) return setRoute(pts) + " (itinéraire de la navigation)";
         }
         MapFile mf = null;
@@ -78,8 +106,21 @@ final class DriveSim {
             // départ : la route pour voitures la plus proche (jusqu'à 300 m)
             RoadSnap.Result r = RoadSnap.snap(sn.around(lat, lon, 310), lat, lon, 0, false, 300, null, 1);
             if (r == null) return "aucune route près de " + lat + "," + lon;
+            double len = extend(pts, sn, r, 1200);
+            if (pts.size() < 2 || len < 200) return "parcours trop court (" + Math.round(len) + " m)";
+            return setRoute(pts);
+        } catch (Throwable t) {
+            rx = null;
+            return "erreur " + t;
+        } finally {
+            if (mf != null) try { mf.close(); } catch (Throwable ignored) { }
+        }
+    }
+
+    /** Continue le parcours sur les routes depuis r, le plus droit possible, sur environ maxLen mètres. */
+    private static double extend(ArrayList<double[]> pts, RoadSnap sn, RoadSnap.Result r, double maxLen) {
             double len = 0;
-            for (int hop = 0; hop < 12 && len < 1200; hop++) {
+            for (int hop = 0; hop < 12 && len < maxLen; hop++) {
                 RoadSnap.path(r, sn.around(r.lat, r.lon, 400));
                 int start = pts.isEmpty() ? 0 : 1;
                 for (int i = start; i < r.pathLat.length; i++) {
@@ -100,14 +141,7 @@ final class DriveSim {
                 if (nr == null) break;
                 r = nr;
             }
-            if (pts.size() < 2 || len < 200) return "parcours trop court (" + Math.round(len) + " m)";
-            return setRoute(pts);
-        } catch (Throwable t) {
-            rx = null;
-            return "erreur " + t;
-        } finally {
-            if (mf != null) try { mf.close(); } catch (Throwable ignored) { }
-        }
+            return len;
     }
 
     private String setRoute(ArrayList<double[]> pts) {

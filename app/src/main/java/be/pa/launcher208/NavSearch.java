@@ -314,6 +314,7 @@ final class NavSearch {
                         else {
                             r = ro.route(from, to, head);
                             if (r == null) err = "Aucun trajet en voiture trouvé jusque-là.";
+                            else r.steps = Guide.build(ro.g, r);
                         }
                     }
                 } catch (Throwable t) {
@@ -353,11 +354,7 @@ final class NavSearch {
         });
     }
 
-    static String dist(double m) {
-        if (m < 950) return (Math.round(m / 10) * 10) + " m";
-        double km = m / 1000;
-        return km < 10 ? String.format(Locale.FRANCE, "%.1f km", km) : Math.round(km) + " km";
-    }
+    static String dist(double m) { return Nav.dist(m); }
 
     private void start() {
         if (chosen == null || route == null) return;

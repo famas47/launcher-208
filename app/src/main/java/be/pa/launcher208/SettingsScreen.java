@@ -240,6 +240,15 @@ final class SettingsScreen extends Screen {
             }
         });
         s.addView(navBtn, U.lpm(U.WR, U.s(42), 0, 0, 0, 10));
+        add(s, row("Voix du guidage", "« Dans 300 mètres, tourne à droite »", new Widgets.Toggle(a, P.navVoice(), new Widgets.BoolCb() {
+            @Override public void on(boolean v) { P.put(P.NAV_VOICE, v); if (!v) App.I.nav.voice.stop(); }
+        })), true);
+        add(s, row("Voix par le son de la musique", "Si tu n'entends pas la voix du guidage", new Widgets.Toggle(a, P.navVoiceMedia(), new Widgets.BoolCb() {
+            @Override public void on(boolean v) { P.put(P.NAV_VOICE_MEDIA, v); App.I.nav.voice.say("droite"); }
+        })), true);
+        add(s, row("Panneaux de vitesse", "Limitation de la route où tu roules, en mode conduite", new Widgets.Toggle(a, P.speedSigns(), new Widgets.BoolCb() {
+            @Override public void on(boolean v) { P.put(P.SPEED_SIGNS, v); }
+        })), false);
 
         s = section(c2, "Heure et voiture");
         clockVal = U.tv(a, "", 14, Pal.text, 600);

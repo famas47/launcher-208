@@ -63,6 +63,7 @@ public class App extends Application {
         night = new Night(getContentResolver());
         mapdl = new MapDl();
         upd = new Updater();
+        nav.init(); // limitations de vitesse et navigation suivent le GPS
         appReady = SystemClock.uptimeMillis();
         mark("application prête");
     }

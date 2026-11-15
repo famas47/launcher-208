@@ -53,6 +53,8 @@ class NavFile {
 
     IntBuffer ints(int i) { return bytes(i).asIntBuffer(); }
 
+    int sections() { return sec.length; }
+
     ShortBuffer shorts(int i) { return bytes(i).asShortBuffer(); }
 }
 
@@ -62,6 +64,7 @@ final class NavGraph {
     final IntBuffer nLat, nLon, firstOut, out, eu, ev, elen, ename, geoStart, gLat, gLon, banVia, banIn, banOut,
             cellStart, cellEdges, nameStart;
     final ByteBuffer nFlag, nDeg, espeed, eflags, nameBytes;
+    final ByteBuffer vmaxF, vmaxB; // limitations de vitesse (km/h, 0 = inconnue) ; null avec d'anciennes données
 
     NavGraph(File f) throws IOException {
         NavFile nf = new NavFile(f, "R208ROUT");
@@ -97,6 +100,20 @@ final class NavGraph {
         cellEdges = nf.ints(19);
         nameStart = nf.ints(20);
         nameBytes = nf.bytes(21);
+        vmaxF = nf.sections() > 23 ? nf.bytes(22) : null;
+        vmaxB = nf.sections() > 23 ? nf.bytes(23) : null;
+    }
+
+    /** Rond-point. */
+    boolean roundabout(int e) { return (eflags.get(e) & 64) != 0; }
+
+    /** Bretelle (entrée ou sortie d'autoroute ou de grande route). */
+    boolean link(int e) { return (eflags.get(e) & 128) != 0; }
+
+    /** Limitation de vitesse en parcourant le tronçon dans ce sens (0 = de u vers v), en km/h, 0 si inconnue. */
+    int limit(int e, int dir) {
+        if (vmaxF == null) return 0;
+        return (dir == 0 ? vmaxF.get(e) : vmaxB.get(e)) & 0xff;
     }
 
     double lat(int n) { return nLat.get(n) / 1e6; }

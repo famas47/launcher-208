@@ -25,6 +25,8 @@ final class DriveScreen extends Screen {
     private TextView north;
     private LinearLayout navBanner;
     private TextView navTitle, navInfo;
+    private NavViews.Arrow navArrow;
+    private NavViews.Sign sign;
     private ImageView playIcon;
     private boolean withMap, shown, mapPending;
     private int lastSpeed = Integer.MIN_VALUE, radioPoll; // -1 = vitesse inconnue (tiret)
@@ -91,6 +93,9 @@ final class DriveScreen extends Screen {
         U.spacing(speed, -6, 150);
         sp.addView(speed);
         sp.addView(U.tv(a, "km/h", 28, Pal.text2, 500), U.lpm(U.WR, U.WR, 14, 0, 0, 0)); // alignés sur la ligne de base
+        sign = new NavViews.Sign(a);
+        sign.setVisibility(View.GONE);
+        sp.addView(sign, U.lpm(U.s(74), U.s(74), 26, 0, 0, 30));
         c.addView(sp, U.lp(U.M, U.WR));
         c.addView(U.flexV(a));
 
@@ -117,14 +122,19 @@ final class DriveScreen extends Screen {
         navBanner.setBackground(U.rr(Pal.night ? 0xF516181C : 0xF5FFFFFF, 20));
         U.shadow(navBanner, 5);
         U.pad(navBanner, 14, 8, 8, 8);
-        navBanner.addView(U.box(a, 40, U.grad(0xFF4C8DFF, 0xFF2563EB, 12), R.drawable.ic_route, 22, Pal.WHITE));
+        FrameLayout ab = new FrameLayout(a);
+        ab.setBackground(U.grad(0xFF4C8DFF, 0xFF2563EB, 14));
+        navArrow = new NavViews.Arrow(a);
+        ab.addView(navArrow, new FrameLayout.LayoutParams(U.M, U.M));
+        navBanner.addView(ab, U.lp(U.s(58), U.s(58)));
         LinearLayout nt = U.col(a);
-        navTitle = U.tv(a, "", 17, Pal.text, 700);
+        navTitle = U.tv(a, "", 26, Pal.text, 700);
         navTitle.setSingleLine(true);
         navTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
         nt.addView(navTitle);
         navInfo = U.tv(a, "", 15, Pal.text2, 500);
         navInfo.setSingleLine(true);
+        navInfo.setEllipsize(android.text.TextUtils.TruncateAt.END);
         nt.addView(navInfo, U.lpm(U.WR, U.WR, 0, 1, 0, 0));
         navBanner.addView(nt, U.lpm(U.WR, U.WR, 12, 0, 12, 0));
         TextView stop = U.tv(a, "✕", 20, Pal.text, 600);
@@ -222,6 +232,9 @@ final class DriveScreen extends Screen {
         street.setMaxWidth(U.s(600));
         mid.addView(street, U.lpm(U.WR, U.s(46), 0, 22, 0, 0));
         f.addView(mid, U.flm(U.M, U.WR, Gravity.CENTER, 0, 70, 0, 172)); // centré entre la barre du haut et les tuiles
+        sign = new NavViews.Sign(a);
+        sign.setVisibility(View.GONE);
+        f.addView(sign, U.flm(U.s(96), U.s(96), Gravity.TOP | Gravity.RIGHT, 0, 96, 34, 0));
 
         LinearLayout tiles = U.row(a);
         tiles.setGravity(0);
@@ -356,7 +369,7 @@ final class DriveScreen extends Screen {
         @Override public void run() { updateNav(); }
     };
 
-    /** Bandeau de navigation : vers où, ce qu'il reste, heure d'arrivée. */
+    /** Bandeau de navigation : prochaine manœuvre (flèche, distance, rue) ; en bas : ce qu'il reste et l'heure d'arrivée. */
     private void updateNav() {
         if (navBanner == null) return;
         Nav n = App.I.nav;
@@ -364,13 +377,24 @@ final class DriveScreen extends Screen {
             navBanner.setVisibility(View.GONE);
         } else {
             navBanner.setVisibility(View.VISIBLE);
-            U.text(navTitle, n.dest.name);
-            String info = n.state.isEmpty()
-                    ? NavSearch.dist(n.remainingM) + " · " + Fmt.dur(Math.max(1, Math.round(n.remainingS / 60))) + " · arrivée " + Fmt.hhmm(n.arrival())
-                    : n.state;
-            U.text(navInfo, info);
+            Guide.Step st = n.next;
+            if (n.arrived || st == null) {
+                navArrow.set("arrivee", 0, 0);
+                U.text(navTitle, n.arrived ? "Tu es arrivé" : n.dest.name);
+                U.text(navInfo, n.arrived ? n.dest.name : n.state);
+            } else {
+                navArrow.set(st.action, st.angle, st.exit);
+                U.text(navTitle, st.action.equals("arrivee") ? Nav.dist(n.nextM) : Nav.dist(n.nextM));
+                String what = st.action.equals("arrivee") ? "Arrivée : " + n.dest.name
+                        : Guide.text(st) + (st.street.isEmpty() ? "" : " · " + st.street);
+                U.text(navInfo, n.state.isEmpty() ? what : n.state);
+            }
         }
         if (mapStreet != null && n.active) mapStreet.setVisibility(View.GONE);
+        if (mapTrip != null && n.active && !n.arrived) {
+            U.text(mapTrip, Nav.dist(n.remainingM) + "   ·   " + Fmt.dur(Math.max(1, Math.round(n.remainingS / 60)))
+                    + "   ·   " + Fmt.hhmm(n.arrival()));
+        }
         if (mini != null) mini.syncRoute();
     }
 
@@ -528,7 +552,8 @@ final class DriveScreen extends Screen {
             U.text(tripKm, HomeScreen.vu(Fmt.km(t.curKm), " km", 16));
             U.text(tripMin, HomeScreen.vu(String.valueOf(mins), " min", 16));
         }
-        if (mapTrip != null) U.text(mapTrip, Fmt.km(t.curKm) + " km   ·   " + Fmt.dur(mins));
+        if (mapTrip != null && !App.I.nav.active) U.text(mapTrip, Fmt.km(t.curKm) + " km   ·   " + Fmt.dur(mins));
+        if (sign != null) sign.set(App.I.nav.limit);
         if (radioName != null && radioPoll-- <= 0) {
             radioPoll = 3;
             updateRadio();

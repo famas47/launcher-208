@@ -506,7 +506,7 @@ public class HomeActivity extends Activity {
         if (i.hasExtra("test_nav_demarrer") && navSearch != null) navSearch.testStart();
         if (i.hasExtra("test_nav_ouvrir")) openNav();
         if (i.hasExtra("test_nav_arreter")) App.I.nav.stop();
-        if (i.hasExtra("test_simu")) DriveSim.start(i.getIntExtra("test_simu", 1));
+        if (i.hasExtra("test_simu")) DriveSim.start(i.getIntExtra("test_simu", 1), i.getIntExtra("test_simu_ecart", 0) == 1);
         if (i.hasExtra("test_simu_stop")) DriveSim.stopNow();
         if (i.hasExtra("test_coller")) P.put(P.MAP_SNAP, i.getIntExtra("test_coller", 1) == 1);
         if (i.hasExtra("test_maj")) App.I.upd.check(this);
@@ -526,7 +526,9 @@ public class HomeActivity extends Activity {
                     + " | cp_action=" + PhoneWatch.lastAction + " | cap=" + Math.round(App.I.loc.bearing)
                     + " | gps_hz=" + String.format(java.util.Locale.ROOT, "%.1f", App.I.loc.fixRate()) + " | carte_stats=" + MiniMap.statsNow()
                     + " | nav=" + (App.I.nav.active ? App.I.nav.dest.name + " reste " + Math.round(App.I.nav.remainingM) + " m "
-                    + Math.round(App.I.nav.remainingS) + " s etat=" + App.I.nav.state : "non") + " | nav_donnees=" + NavData.available(this));
+                    + Math.round(App.I.nav.remainingS) + " s etat=" + App.I.nav.state + " prochaine=" + (App.I.nav.next == null ? "-" : App.I.nav.next.action
+                    + " dans " + Math.round(App.I.nav.nextM) + " m") + " recalculs=" + App.I.nav.reroutes : "non") + " | nav_donnees=" + NavData.available(this)
+                    + " | limite=" + App.I.nav.limit + " | voix=" + NavVoice.last);
         }
         if (i.hasExtra("test_info")) root.post(new Runnable() {
             @Override public void run() { testLog(root); }

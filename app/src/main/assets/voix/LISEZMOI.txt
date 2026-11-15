@@ -1,0 +1,8 @@
+Phrases du guidage de la navigation (Launcher 208).
+
+Voix : « Siwis », modèle Piper fr_FR-siwis-medium (https://github.com/rhasspy/piper),
+entraîné sur la base SIWIS French Speech Synthesis Database (Université d'Édimbourg),
+licence Creative Commons Attribution 4.0 (CC BY 4.0) :
+https://datashare.is.ed.ac.uk/handle/10283/2353
+
+Phrases fabriquées par outils/voix/phrases.py (workflow voix.yml).

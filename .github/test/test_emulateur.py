@@ -488,6 +488,51 @@ if all(os.path.exists(f) for f in NAVF):
             break
     shot('28-nav-arrivee', 1)
     etat('à l\'arrivée (navigation arrêtée ou « Tu es arrivé »)')
+    t = adb('logcat -d -s Test208:I')
+    g_ = re.findall(r'(guidage .*)', t)
+    log('  instructions : ' + (g_[-1][:500] if g_ else '(aucune)'))
+    log('  voix entendue pendant le trajet : ' + ', '.join(re.findall(r'voix : (\S+)', t)[-14:]))
+    hook(nav_arreter=1)
+    hook(vitesse=-1)
+    time.sleep(1)
+
+    # Mauvais chemin : la voiture continue tout droit au lieu de tourner -> nouvel itinéraire
+    log('  -- mauvais chemin (la voiture ne prend pas le premier virage) --')
+    adb('emu geo fix 3.9517 50.4542')
+    time.sleep(2)
+    hook(nav_chercher='gare de mons')
+    time.sleep(3)
+    hook(nav_choisir=0)
+    time.sleep(5)
+    hook(nav_demarrer=1)
+    time.sleep(3)
+    t = adb('logcat -d -s Test208:I')
+    avant_rc = len(re.findall(r'trajet recalculé', t))
+    avant = len(re.findall(r'simu (?:fin|arrêté|remplacé)', t))
+    hook(simu=1, simu_ecart=1)
+    t0 = time.time()
+    vu = False
+    while time.time() - t0 < 220:
+        time.sleep(3)
+        t = adb('logcat -d -s Test208:I')
+        rc = re.findall(r'(trajet recalculé .*)', t)
+        if not vu and len(rc) > avant_rc:
+            vu = True
+            log('  ' + rc[-1])
+            shot('29-nav-nouvel-itineraire', 2)
+            etat('après le nouveau calcul')
+        m = re.findall(r'(simu (?:fin|arrêté|remplacé).*)', t)
+        if len(m) > avant:
+            log('  ' + m[-1][:300])
+            break
+    if not vu:
+        log('  PROBLÈME : pas de nouvel itinéraire calculé après le mauvais chemin')
+    t = adb('logcat -d -s Test208:I')
+    p_ = re.findall(r'simu parcours : (.*)', t)
+    log('  parcours simulé : ' + (p_[-1] if p_ else '?'))
+    log('  voix : ' + ', '.join(re.findall(r'voix : (\S+)', t)[-10:]))
+    shot('29-nav-fin-ecart', 0.5)
+    etat('fin du test du mauvais chemin')
     hook(nav_arreter=1)
     hook(vitesse=-1)
     time.sleep(1)

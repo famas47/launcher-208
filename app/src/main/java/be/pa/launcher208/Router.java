@@ -117,6 +117,7 @@ final class Router {
         int[] edges;         // tronçons parcourus (2e = de u vers v, 2e+1 = de v vers u)
         int[] edgeFirstPoint;// indice du premier point de chaque tronçon dans lat/lon
         double[] edgeSeconds;// durée de chaque tronçon parcouru
+        java.util.List<Guide.Step> steps; // instructions de guidage
         int explored;
     }
 
@@ -188,10 +189,10 @@ final class Router {
                     // entrée dans le tronçon d'arrivée : on s'arrête au point d'arrivée
                     boolean forward = (o & 1) == 0;
                     double part = forward ? to.along : tl - to.along;
-                    double c = gs + part / g.mps(te);
+                    double c = gs + part / g.mps(te) + (deg > 2 ? turnCost(s, o) : 0);
                     if (c < bestGoal) { bestGoal = c; goalState = s; goalDir = o & 1; }
                 }
-                double c = gs + g.len(e2) / g.mps(e2);
+                double c = gs + g.len(e2) / g.mps(e2) + (deg > 2 ? turnCost(s, o) : 0);
                 if (stamp[o] != cur || c < dist[o]) {
                     stamp[o] = cur;
                     dist[o] = (float) c;
@@ -219,6 +220,55 @@ final class Router {
         r.seconds = r.cumT[r.cumT.length - 1];
         r.explored = explored;
         return r;
+    }
+
+    /**
+     * Temps perdu à un carrefour selon le virage : rien tout droit, un peu à droite, plus à gauche (il faut
+     * laisser passer), beaucoup pour un demi-tour. Évite les trajets en zigzag par les petites rues.
+     */
+    private double turnCost(int in, int out) {
+        double a = Glide.wrap(startBearing(out) - endBearing(in)); // + = à droite
+        double x = Math.abs(a);
+        if (x < 30) return 0;
+        if (x < 60) return 1;
+        if (x < 140) return a > 0 ? 3 : 7;
+        return 25;
+    }
+
+    /** Direction en arrivant au bout du tronçon parcouru (dernier segment). */
+    private double endBearing(int s) {
+        int e = s >> 1, a = g.geoStart.get(e), b = g.geoStart.get(e + 1);
+        int pLat, pLon, qLat, qLon;
+        if ((s & 1) == 0) { // u -> v : du dernier point de forme (ou u) vers v
+            int v = g.ev.get(e);
+            qLat = g.nLat.get(v); qLon = g.nLon.get(v);
+            if (b > a) { pLat = g.gLat.get(b - 1); pLon = g.gLon.get(b - 1); }
+            else { int u = g.eu.get(e); pLat = g.nLat.get(u); pLon = g.nLon.get(u); }
+        } else {            // v -> u : du premier point de forme (ou v) vers u
+            int u = g.eu.get(e);
+            qLat = g.nLat.get(u); qLon = g.nLon.get(u);
+            if (b > a) { pLat = g.gLat.get(a); pLon = g.gLon.get(a); }
+            else { int v = g.ev.get(e); pLat = g.nLat.get(v); pLon = g.nLon.get(v); }
+        }
+        return Math.toDegrees(Math.atan2((qLon - pLon) * 0.637, (qLat - pLat)));
+    }
+
+    /** Direction au départ du tronçon parcouru (premier segment). */
+    private double startBearing(int s) {
+        int e = s >> 1, a = g.geoStart.get(e), b = g.geoStart.get(e + 1);
+        int pLat, pLon, qLat, qLon;
+        if ((s & 1) == 0) {
+            int u = g.eu.get(e);
+            pLat = g.nLat.get(u); pLon = g.nLon.get(u);
+            if (b > a) { qLat = g.gLat.get(a); qLon = g.gLon.get(a); }
+            else { int v = g.ev.get(e); qLat = g.nLat.get(v); qLon = g.nLon.get(v); }
+        } else {
+            int v = g.ev.get(e);
+            pLat = g.nLat.get(v); pLon = g.nLon.get(v);
+            if (b > a) { qLat = g.gLat.get(b - 1); qLon = g.gLon.get(b - 1); }
+            else { int u = g.eu.get(e); qLat = g.nLat.get(u); qLon = g.nLon.get(u); }
+        }
+        return Math.toDegrees(Math.atan2((qLon - pLon) * 0.637, (qLat - pLat)));
     }
 
     private double startPenalty(int e, int dir, double heading, Snap from) {
