@@ -181,7 +181,6 @@ final class MiniMap {
             // itinéraire de la navigation (sous les noms de rue) et point d'arrivée
             routeLine = new RouteLayer(paint(night ? 0xF04C9BFF : 0xE82F7BF6, U.f(9), true), AndroidGraphicFactory.INSTANCE);
             mv.getLayerManager().getLayers().add(routeLine);
-            syncRoute();
             if (rotating) {
                 mv.getLayerManager().getLayers().add(new ThreadedLabelLayer(AndroidGraphicFactory.INSTANCE, layer.getLabelStore()));
                 // La zone dessinée est un carré de la taille de la diagonale (elle couvre toutes les rotations) ;
@@ -206,6 +205,9 @@ final class MiniMap {
                 // point de départ : la dernière position connue (la voiture s'y pose sans animation)
                 glide.onFix(nowMs, lat, lon, 0, true, loc.bearing, true, null, null);
             }
+            // itinéraire après le mouvement : la ligne part tout de suite de la voiture (rien derrière elle,
+            // même quand la carte est recréée en cours de route)
+            syncRoute();
             startThread();
             loc.addFix(fixListener);
             statStart = System.nanoTime();
