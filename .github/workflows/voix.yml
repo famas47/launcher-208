@@ -1,0 +1,33 @@
+name: Voix du GPS (essais)
+
+on:
+  push:
+    branches: [ voix ]
+    paths: [ 'outils/voix/**', '.github/workflows/voix.yml' ]
+
+permissions:
+  contents: write
+
+jobs:
+  voix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Outils
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg espeak-ng
+          pip install --quiet piper-tts
+          pip install --quiet kokoro soundfile "misaki[fr]" || echo "Kokoro non installé"
+      - name: Faire parler les voix
+        run: python3 outils/voix/essai.py sons
+      - name: Brouillon avec les sons
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/releases?per_page=100" \
+            --jq '.[] | select(.draft and (.tag_name | startswith("voix-essai-"))) | .id' |
+          while read -r id; do gh api -X DELETE "repos/${{ github.repository }}/releases/$id"; done || true
+          gh release create "voix-essai-${{ github.run_number }}" --draft --target "${{ github.sha }}" \
+            --title "Voix : essai ${{ github.run_number }}" --notes "Essais de voix (privés)." sons/*.mp3
