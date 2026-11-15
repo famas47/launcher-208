@@ -68,7 +68,8 @@ def shot(name, wait=1.5):
 def hook(**kw):
     args = []
     for k, v in kw.items():
-        args.append(('--es test_%s %s' % (k, v if v else '""')) if isinstance(v, str) else ('--ei test_%s %d' % (k, v)))
+        # texte entre guillemets pour le shell de l'émulateur (les espaces restent dans le texte)
+        args.append(('--es test_%s "\'%s\'"' % (k, v)) if isinstance(v, str) else ('--ei test_%s %d' % (k, v)))
     adb('shell am start -n %s %s' % (ACT, ' '.join(args)))
 
 

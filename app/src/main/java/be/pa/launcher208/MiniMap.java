@@ -225,7 +225,9 @@ final class MiniMap {
             if (mv == null || destroyed || (lat == 0 && lon == 0)) return;
             fixes++;
             if (!P.mapSnap() || bgH == null) {
-                glide.onFix(monoMs, lat, lon, mps, measured, bearing, bearingOk, null, null);
+                double[][] np = mps >= Glide.STOP_MPS ? App.I.nav.pathAhead(lat, lon, 250) : null;
+                if (np != null) glide.onFix(monoMs, np[0][0], np[1][0], mps, measured, bearing, bearingOk, np[0], np[1]);
+                else glide.onFix(monoMs, lat, lon, mps, measured, bearing, bearingOk, null, null);
                 startAnimation();
                 return;
             }
@@ -270,7 +272,13 @@ final class MiniMap {
             App.I.main.post(new Runnable() {
                 @Override public void run() {
                     if (mv == null || destroyed) return;
-                    if (res != null) {
+                    // navigation en cours : la voiture suit l'itinéraire prévu (elle tourne là où il tourne)
+                    double[][] np = f[3] >= Glide.STOP_MPS
+                            ? App.I.nav.pathAhead(res != null ? res.lat : f[1], res != null ? res.lon : f[2], 250) : null;
+                    if (np != null) {
+                        snapped++;
+                        glide.onFix(f[0], np[0][0], np[1][0], f[3], measured, f[4], bOk, np[0], np[1]);
+                    } else if (res != null) {
                         snapped++;
                         glide.onFix(f[0], res.lat, res.lon, f[3], measured, f[4], bOk,
                                 f[3] >= Glide.STOP_MPS ? res.pathLat : null, f[3] >= Glide.STOP_MPS ? res.pathLon : null);

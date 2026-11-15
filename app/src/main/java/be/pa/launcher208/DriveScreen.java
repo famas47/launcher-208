@@ -136,6 +136,8 @@ final class DriveScreen extends Screen {
         stop.setContentDescription("Arrêter la navigation");
         navBanner.addView(stop, U.lp(U.s(44), U.s(44)));
         navBanner.setVisibility(View.GONE);
+        navBanner.setMinimumWidth(U.s(400));
+        ((LinearLayout.LayoutParams) nt.getLayoutParams()).weight = 1;
         mapBox.addView(navBanner, U.flm(U.WR, U.WR, Gravity.TOP | Gravity.LEFT, 14, 14, 70, 0));
         TextView osm = U.tv(a, "© OpenStreetMap", 11, Pal.text2, 400);
         osm.setBackground(U.rr(Pal.night ? 0xD916181C : 0xD9FFFFFF, 6));

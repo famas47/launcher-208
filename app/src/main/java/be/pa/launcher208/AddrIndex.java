@@ -234,7 +234,7 @@ final class AddrIndex {
 
     private double base(int e) {
         int t = typ.get(e), im = imp.get(e);
-        return t == PLACE ? 30 + 5 * im : t == STREET ? 22 : 14 + 4 * im;
+        return t == PLACE ? 22 + 5 * im : t == STREET ? 22 : 14 + 4 * im;
     }
 
     int size() { return n; }

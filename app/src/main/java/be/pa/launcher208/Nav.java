@@ -123,6 +123,37 @@ final class Nav {
         fire();
     }
 
+    /**
+     * L'itinéraire devant ce point (250 m), en commençant par le point de l'itinéraire le plus proche : la voiture
+     * affichée suit ainsi les virages prévus entre deux positions GPS. Null si le point est loin de l'itinéraire.
+     */
+    double[][] pathAhead(double lat, double lon, double maxM) {
+        Router.Route r = route;
+        if (!active || arrived || r == null) return null;
+        double kx = 111320.0 * Math.cos(Math.toRadians(lat)), ky = 110540.0;
+        int n = r.lat.length, from = Math.max(0, idx - 10);
+        double limit = r.cum[Math.min(idx, n - 1)] + 600;
+        int bestI = -1;
+        double bestD = 20, bestT = 0;
+        for (int i = from; i + 1 < n && r.cum[i] <= limit; i++) {
+            double ax = (r.lon[i] - lon) * kx, ay = (r.lat[i] - lat) * ky;
+            double bx = (r.lon[i + 1] - lon) * kx, by = (r.lat[i + 1] - lat) * ky;
+            double sx = bx - ax, sy = by - ay, l2 = sx * sx + sy * sy;
+            double t = l2 < 1e-9 ? 0 : Math.max(0, Math.min(1, -(ax * sx + ay * sy) / l2));
+            double qx = ax + t * sx, qy = ay + t * sy, d = Math.sqrt(qx * qx + qy * qy);
+            if (d < bestD) { bestD = d; bestI = i; bestT = t; }
+        }
+        if (bestI < 0) return null;
+        double along = r.cum[bestI] + bestT * (r.cum[bestI + 1] - r.cum[bestI]);
+        ArrayList<double[]> pts = new ArrayList<>();
+        pts.add(new double[]{r.lat[bestI] + bestT * (r.lat[bestI + 1] - r.lat[bestI]), r.lon[bestI] + bestT * (r.lon[bestI + 1] - r.lon[bestI])});
+        for (int i = bestI + 1; i < n && r.cum[i] - along <= maxM; i++) pts.add(new double[]{r.lat[i], r.lon[i]});
+        if (pts.size() < 2) return null;
+        double[] la = new double[pts.size()], lo = new double[pts.size()];
+        for (int i = 0; i < la.length; i++) { la[i] = pts.get(i)[0]; lo[i] = pts.get(i)[1]; }
+        return new double[][]{la, lo};
+    }
+
     private void recalc(final double lat, final double lon, final double heading) {
         recalculating = true;
         lastRecalc = SystemClock.uptimeMillis();
