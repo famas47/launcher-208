@@ -198,7 +198,7 @@ final class SettingsScreen extends Screen {
         offBtns.addView(offMinus, U.lp(U.WR, U.s(42)));
         offBtns.addView(offsetVal, U.lp(U.WR, U.s(42)));
         offBtns.addView(offPlus, U.lp(U.WR, U.s(42)));
-        add(s, row("Vitesse comme le compteur", "Ce que le compteur affiche en plus (Peugeot : +3 en général)", offBtns), true);
+        add(s, row("Vitesse comme le compteur", "Ton compteur affiche un peu plus que le GPS", offBtns), true);
         afterVal = U.tv(a, "", 15, Pal.text, 600);
         add(s, row("Activer après le contact", "Même si la vitesse n'arrive pas", valueBtn(afterVal, new Runnable() {
             @Override public void run() {
