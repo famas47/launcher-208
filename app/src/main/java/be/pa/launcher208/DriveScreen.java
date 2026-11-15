@@ -538,8 +538,10 @@ final class DriveScreen extends Screen {
     private final Runnable speedRun = new Runnable() {
         @Override public void run() {
             if (!shown || speed == null) return;
-            updateSpeed();
-            speed.postDelayed(this, 100);
+            // écran caché (CarPlay devant, autoradio en veille) : on attend sans rien calculer
+            boolean visible = speed.getWindowVisibility() == View.VISIBLE && speed.isShown();
+            if (visible) updateSpeed();
+            speed.postDelayed(this, visible ? 100 : 500);
         }
     };
 

@@ -43,7 +43,7 @@ final class DriveSim {
     private final boolean ecart;
     // vitesse affichée : écart avec la vraie vitesse (km/h), nouvelle et ancienne façon, et ligne de l'itinéraire
     private final ArrayList<Double> vErr = new ArrayList<>(), vOld = new ArrayList<>(), cutGap = new ArrayList<>();
-    private double nextSpeedT = 3, oldShown = -1, nextOldT = 3;
+    private double nextSpeedT = 3, oldShown = -1, nextOldT = 3, gapMax = -1e9, gapMaxT, gapMaxAlong;
 
     private DriveSim(double hz, boolean ecart) { this.hz = hz; this.ecart = ecart; }
 
@@ -275,8 +275,11 @@ final class DriveSim {
                 double cut = MiniMap.routeCut();
                 double[] dd = MiniMap.displayed();
                 if (cut >= 0 && dd != null && App.I.nav.active) {
-                    double along = alongNav(dd[0], dd[1]);
-                    if (along >= 0) cutGap.add(along - cut);
+                    double along = alongNav(dd[0], dd[1], dd[2]);
+                    if (along >= 0) {
+                        cutGap.add(along - cut);
+                        if (along - cut > gapMax) { gapMax = along - cut; gapMaxT = tNow; gapMaxAlong = along; }
+                    }
                 }
             }
             if (d != null && t > 3 && t > pT + 1e-6) {
@@ -312,15 +315,20 @@ final class DriveSim {
         }
     };
 
-    /** Distance le long de l'itinéraire de la navigation du point le plus proche (m), -1 si loin. */
-    private static double alongNav(double lat, double lon) {
+    /**
+     * Distance le long de l'itinéraire de la navigation (m) du point affiché, -1 si loin. Cherché autour de la
+     * position de la navigation et dans le sens de la voiture (un itinéraire peut repasser au même endroit).
+     */
+    private static double alongNav(double lat, double lon, double head) {
         Router.Route r = App.I.nav.route;
         if (r == null) return -1;
         double kx = 111320.0 * Math.cos(Math.toRadians(lat)), ky = 110540.0, best = 30, along = -1;
-        for (int i = 0; i + 1 < r.lat.length; i++) {
+        int from = Math.max(0, App.I.nav.segment() - 30);
+        for (int i = from; i + 1 < r.lat.length && r.cum[i] < r.cum[from] + 800; i++) {
             double ax = (r.lon[i] - lon) * kx, ay = (r.lat[i] - lat) * ky;
             double bx = (r.lon[i + 1] - lon) * kx, by = (r.lat[i + 1] - lat) * ky;
             double sx = bx - ax, sy = by - ay, l2 = sx * sx + sy * sy;
+            if (l2 > 4 && Math.abs(Glide.wrap(head - Math.toDegrees(Math.atan2(sx, sy)))) > 70) continue;
             double tt = l2 < 1e-9 ? 0 : Math.max(0, Math.min(1, -(ax * sx + ay * sy) / l2));
             double qx = ax + tt * sx, qy = ay + tt * sy, d = Math.sqrt(qx * qx + qy * qy);
             if (d < best) { best = d; along = r.cum[i] + tt * (r.cum[i + 1] - r.cum[i]); }
@@ -360,8 +368,8 @@ final class DriveSim {
             ArrayList<Double> ab = new ArrayList<>();
             for (double g : cutGap) ab.add(Math.abs(g));
             Log.i("Test208", String.format(Locale.ROOT,
-                    "ligne bleue : commence à %.1f m de la voiture en moyenne (95%% sous %.1f m, au plus %.1f m derrière, %.1f m devant) | %d mesures",
-                    mean(ab), pct(ab, .95), Math.max(0, pct(cutGap, 1)), Math.max(0, -pct(cutGap, 0)), cutGap.size()));
+                    "ligne bleue : commence à %.1f m de la voiture en moyenne (95%% sous %.1f m, au plus %.1f m derrière à %.0f s / %.0f m du départ, %.1f m devant) | %d mesures",
+                    mean(ab), pct(ab, .95), Math.max(0, gapMax), gapMaxT, gapMaxAlong, Math.max(0, -pct(cutGap, 0)), cutGap.size()));
         }
     }
 }
