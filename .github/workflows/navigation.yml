@@ -1,0 +1,78 @@
+name: Données de navigation (Belgique)
+
+# Prépare, à partir d'OpenStreetMap, les deux fichiers dont la navigation a besoin sur l'autoradio :
+# le réseau routier (pour calculer les trajets) et les adresses et lieux (pour chercher une destination).
+# Se lance à chaque changement des outils de construction (branche nav), ou à la main.
+on:
+  push:
+    branches: [ nav ]
+    paths: [ 'outils/nav/**', '.github/workflows/navigation.yml' ]
+  workflow_dispatch:
+    inputs:
+      publier:
+        description: 'Publier les fichiers pour l''autoradio (oui/non)'
+        default: 'non'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: navigation
+  cancel-in-progress: true
+
+jobs:
+  donnees:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v7.0.1
+
+      - name: Installer les outils OpenStreetMap
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq osmium-tool
+          pip install --quiet osmium
+
+      - name: Télécharger la carte OpenStreetMap de Belgique (Geofabrik)
+        run: |
+          curl -fsSL --retry 3 -o belgium.osm.pbf https://download.geofabrik.de/europe/belgium-latest.osm.pbf
+          ls -l belgium.osm.pbf
+          osmium fileinfo belgium.osm.pbf | head -20
+
+      - name: Extrait Mons – Charleroi (pour les essais)
+        run: |
+          osmium extract -b 3.70,50.33,4.55,50.56 belgium.osm.pbf -o mons.osm.pbf --overwrite
+          ls -l mons.osm.pbf
+
+      - name: Construire les fichiers de navigation
+        run: |
+          mkdir -p sortie
+          if [ -f outils/nav/construire.py ]; then
+            python3 outils/nav/construire.py mons.osm.pbf sortie/mons
+            python3 outils/nav/construire.py belgium.osm.pbf sortie/belgique
+            ls -l sortie
+          fi
+
+      - name: Brouillon pour les essais (extrait + fichiers)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/releases?per_page=100" \
+            --jq '.[] | select(.draft and (.tag_name | startswith("nav-essai-"))) | .id' |
+          while read -r id; do gh api -X DELETE "repos/${{ github.repository }}/releases/$id"; done || true
+          files="mons.osm.pbf"
+          for f in sortie/mons*; do [ -f "$f" ] && files="$files $f"; done
+          for f in sortie/belgique*; do [ -f "$f" ] && files="$files $f"; done
+          gh release create "nav-essai-${{ github.run_number }}" --draft --target "${{ github.sha }}" \
+            --title "Navigation : essai ${{ github.run_number }}" --notes "Fichiers d'essai (privés)." $files
+
+      - name: Publier pour l'autoradio
+        if: ${{ github.event.inputs.publier == 'oui' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view nav-donnees >/dev/null 2>&1 || \
+            gh release create nav-donnees --prerelease --latest=false --title "Données de navigation (Belgique)" \
+              --notes "Réseau routier et adresses de Belgique pour la navigation du Launcher 208. Données © contributeurs OpenStreetMap, licence ODbL (https://www.openstreetmap.org/copyright). Fabriquées par outils/nav/construire.py."
+          gh release upload nav-donnees sortie/belgique-routes.bin sortie/belgique-adresses.bin --clobber
