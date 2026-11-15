@@ -350,10 +350,56 @@ def main():
             restr.append((fr[0], via[0][1], to[0], kind))
     log('lu : %d objets, %d routes, %d points de route, %d bornes, %d interdictions, %d localités, %d rues, %d adresses, %d lieux'
         % (n_obj, len(way_ids), len(node_ids), len(blocked), len(restr), len(places), len(streets), len(addrs), len(pois)))
+    big_places(src, places, pois)
 
     build_routes(out + '-routes.bin', way_ids, way_nodes_start, node_ids, node_lat, node_lon, way_info, blocked, restr)
     build_search(out + '-adresses.bin', places, streets, addrs, pois)
     log('fini')
+
+
+def big_places(src, places, pois):
+    """Lieux dessinés comme de grandes zones (relations « multipolygon ») : aéroports, hôpitaux, parcs, centres
+    commerciaux... Leur centre est la moyenne des points de leurs contours extérieurs."""
+    rels = []
+    way_rel = collections.defaultdict(list)
+    for o in osmium.FileProcessor(src, osmium.osm.RELATION).with_filter(osmium.filter.KeyFilter('name')):
+        t = o.tags
+        if t.get('type') != 'multipolygon':
+            continue
+        lab = poi_label(t)
+        pl = t.get('place') if t.get('place') in PLACES else None
+        if not lab and not pl:
+            continue
+        k = len(rels)
+        rels.append([t.get('name:fr') or t['name'] if pl else t['name'], lab, pl, 0.0, 0.0, 0])
+        for m in o.members:
+            if m.type == 'w' and m.role in ('outer', ''):
+                way_rel[m.ref].append(k)
+    if not rels:
+        return
+    fp = osmium.FileProcessor(src, osmium.osm.NODE | osmium.osm.WAY).with_locations().with_filter(
+        osmium.filter.IdFilter(list(way_rel.keys())))
+    for o in fp:
+        if not o.is_way() or o.id not in way_rel:
+            continue
+        for n in o.nodes:
+            if n.location.valid():
+                for k in way_rel[o.id]:
+                    r = rels[k]
+                    r[3] += n.lat
+                    r[4] += n.lon
+                    r[5] += 1
+    added = 0
+    for (name, lab, pl, sl, so, c) in rels:
+        if not c:
+            continue
+        la, lo = sl / c, so / c
+        if lab:
+            pois.append((name, lab, la, lo))
+        if pl:
+            places.append((la, lo, name, pl))
+        added += 1
+    log('grandes zones nommées : %d' % added)
 
 
 def array_q():
