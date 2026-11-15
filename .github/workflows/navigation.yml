@@ -34,9 +34,16 @@ jobs:
           sudo apt-get install -y -qq osmium-tool
           pip install --quiet osmium
 
-      - name: Télécharger la carte OpenStreetMap de Belgique (Geofabrik)
+      - name: Télécharger la carte OpenStreetMap de Belgique
         run: |
-          curl -fsSL --retry 3 -o belgium.osm.pbf https://download.geofabrik.de/europe/belgium-latest.osm.pbf
+          # Geofabrik d'abord, sinon le miroir d'OpenStreetMap France
+          for url in https://download.geofabrik.de/europe/belgium-latest.osm.pbf \
+                     https://download.openstreetmap.fr/extracts/europe/belgium-latest.osm.pbf \
+                     https://download.geofabrik.de/europe/belgium-latest.osm.pbf; do
+            echo "Essai : $url"
+            if curl -fsSL --retry 4 --retry-all-errors --retry-delay 10 --connect-timeout 20 -o belgium.osm.pbf "$url"; then break; fi
+            sleep 20
+          done
           ls -l belgium.osm.pbf
           osmium fileinfo belgium.osm.pbf | head -20
 
