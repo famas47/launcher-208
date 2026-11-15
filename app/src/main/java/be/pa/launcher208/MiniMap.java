@@ -273,8 +273,8 @@ final class MiniMap {
                 @Override public void run() {
                     if (mv == null || destroyed) return;
                     // navigation en cours : la voiture suit l'itinéraire prévu (elle tourne là où il tourne)
-                    double[][] np = f[3] >= Glide.STOP_MPS
-                            ? App.I.nav.pathAhead(res != null ? res.lat : f[1], res != null ? res.lon : f[2], 250) : null;
+                    // (d'après la position GPS elle-même : une autre route toute proche ne « vole » pas la voiture)
+                    double[][] np = f[3] >= Glide.STOP_MPS ? App.I.nav.pathAhead(f[1], f[2], 250) : null;
                     if (np != null) {
                         snapped++;
                         glide.onFix(f[0], np[0][0], np[1][0], f[3], measured, f[4], bOk, np[0], np[1]);

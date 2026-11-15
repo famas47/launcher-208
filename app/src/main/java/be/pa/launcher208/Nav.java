@@ -134,7 +134,7 @@ final class Nav {
         int n = r.lat.length, from = Math.max(0, idx - 10);
         double limit = r.cum[Math.min(idx, n - 1)] + 600;
         int bestI = -1;
-        double bestD = 20, bestT = 0;
+        double bestD = 30, bestT = 0; // jusqu'à 30 m : erreur habituelle du GPS ; au-delà, la voiture a quitté le trajet
         for (int i = from; i + 1 < n && r.cum[i] <= limit; i++) {
             double ax = (r.lon[i] - lon) * kx, ay = (r.lat[i] - lat) * ky;
             double bx = (r.lon[i + 1] - lon) * kx, by = (r.lat[i + 1] - lat) * ky;
