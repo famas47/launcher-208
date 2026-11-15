@@ -433,8 +433,29 @@ if all(os.path.exists(f) for f in NAVF):
     log('\n--- Navigation (recherche, calcul du trajet, guidage sur la carte) ---')
     phase('navigation')
     d = '/sdcard/Android/data/%s/files' % PKG
-    for f in NAVF:
-        log('  %s copié : %s' % (f, last(adb('push "%s" %s/%s' % (f, d, f), 600))))
+    # Comme dans la voiture : téléchargement depuis l'appli (Réglages → Navigation → Télécharger)
+    adb('shell rm -f %s/belgique-routes.bin %s/belgique-adresses.bin %s/belgique-routes.bin.part %s/belgique-adresses.bin.part' % (d, d, d, d))
+    hook(nav_telecharger=1)
+    t0 = time.time()
+    ok = False
+    e = ''
+    while time.time() - t0 < 420:
+        time.sleep(8)
+        hook(etat=1)
+        time.sleep(1.5)
+        l_ = re.findall(r'etat (.*)', adb('logcat -d -s Test208:I'))
+        e = l_[-1] if l_ else ''
+        if 'nav_donnees=true' in e and '(en cours)' not in e:
+            ok = True
+            break
+        if 'Interrompu' in e:
+            break
+    m = re.search(r'nav_dl=([^|]*)', e)
+    log('  téléchargement depuis l\'appli : %s en %.0f s (%s)' % ('RÉUSSI' if ok else 'PROBLÈME', time.time() - t0, m.group(1).strip() if m else '?'))
+    log('  ' + ' ; '.join(x.strip() for x in adb('shell ls -l %s' % d).splitlines() if 'belgique' in x))
+    if not ok:
+        for f in NAVF:
+            log('  %s copié : %s' % (f, last(adb('push "%s" %s/%s' % (f, d, f), 600))))
     hook(vitesse=-1)
     time.sleep(1)
     adb('emu geo fix 3.9517 50.4542')

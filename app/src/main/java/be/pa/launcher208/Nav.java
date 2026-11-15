@@ -34,6 +34,8 @@ final class Nav {
     int reroutes;
     /** Limitation de vitesse de la route actuelle (km/h), 0 si inconnue. */
     volatile int limit;
+    /** Distance (m) entre la dernière position et l'itinéraire, calculée par pathAhead. */
+    double aheadD;
 
     private List<Guide.Step> steps;
     private int stepIdx;
@@ -229,6 +231,7 @@ final class Nav {
             if (d < bestD) { bestD = d; bestI = i; bestT = t; }
         }
         if (bestI < 0) return null;
+        aheadD = bestD;
         double along = r.cum[bestI] + bestT * (r.cum[bestI + 1] - r.cum[bestI]);
         ArrayList<double[]> pts = new ArrayList<>();
         pts.add(new double[]{r.lat[bestI] + bestT * (r.lat[bestI + 1] - r.lat[bestI]), r.lon[bestI] + bestT * (r.lon[bestI + 1] - r.lon[bestI])});

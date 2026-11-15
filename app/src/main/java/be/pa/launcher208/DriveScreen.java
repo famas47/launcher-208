@@ -384,7 +384,7 @@ final class DriveScreen extends Screen {
                 U.text(navInfo, n.arrived ? n.dest.name : n.state);
             } else {
                 navArrow.set(st.action, st.angle, st.exit);
-                U.text(navTitle, st.action.equals("arrivee") ? Nav.dist(n.nextM) : Nav.dist(n.nextM));
+                U.text(navTitle, Nav.dist(n.nextM));
                 String what = st.action.equals("arrivee") ? "Arrivée : " + n.dest.name
                         : Guide.text(st) + (st.street.isEmpty() ? "" : " · " + st.street);
                 U.text(navInfo, n.state.isEmpty() ? what : n.state);

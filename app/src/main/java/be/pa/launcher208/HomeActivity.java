@@ -506,6 +506,7 @@ public class HomeActivity extends Activity {
         if (i.hasExtra("test_nav_demarrer") && navSearch != null) navSearch.testStart();
         if (i.hasExtra("test_nav_ouvrir")) openNav();
         if (i.hasExtra("test_nav_arreter")) App.I.nav.stop();
+        if (i.hasExtra("test_nav_telecharger")) App.I.navData.download(this);
         if (i.hasExtra("test_simu")) DriveSim.start(i.getIntExtra("test_simu", 1), i.getIntExtra("test_simu_ecart", 0) == 1);
         if (i.hasExtra("test_simu_stop")) DriveSim.stopNow();
         if (i.hasExtra("test_coller")) P.put(P.MAP_SNAP, i.getIntExtra("test_coller", 1) == 1);
@@ -528,7 +529,9 @@ public class HomeActivity extends Activity {
                     + " | nav=" + (App.I.nav.active ? App.I.nav.dest.name + " reste " + Math.round(App.I.nav.remainingM) + " m "
                     + Math.round(App.I.nav.remainingS) + " s etat=" + App.I.nav.state + " prochaine=" + (App.I.nav.next == null ? "-" : App.I.nav.next.action
                     + " dans " + Math.round(App.I.nav.nextM) + " m") + " recalculs=" + App.I.nav.reroutes : "non") + " | nav_donnees=" + NavData.available(this)
-                    + " | limite=" + App.I.nav.limit + " | voix=" + NavVoice.last);
+                    + " | limite=" + App.I.nav.limit + " | voix=" + NavVoice.last
+                    + " | nav_dl=" + App.I.navData.status + " " + (App.I.navData.done >> 20) + "/" + (App.I.navData.total >> 20) + " Mo"
+                    + (App.I.navData.running ? " (en cours)" : ""));
         }
         if (i.hasExtra("test_info")) root.post(new Runnable() {
             @Override public void run() { testLog(root); }

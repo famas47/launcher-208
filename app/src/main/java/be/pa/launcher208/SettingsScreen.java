@@ -243,8 +243,11 @@ final class SettingsScreen extends Screen {
         add(s, row("Voix du guidage", "« Dans 300 mètres, tourne à droite »", new Widgets.Toggle(a, P.navVoice(), new Widgets.BoolCb() {
             @Override public void on(boolean v) { P.put(P.NAV_VOICE, v); if (!v) App.I.nav.voice.stop(); }
         })), true);
+        add(s, row("Écouter la voix", "Pour vérifier à l'arrêt que tu l'entends bien", actionBtn("Écouter", Pal.card2, Pal.text, new Runnable() {
+            @Override public void run() { App.I.nav.voice.test(); }
+        })), true);
         add(s, row("Voix par le son de la musique", "Si tu n'entends pas la voix du guidage", new Widgets.Toggle(a, P.navVoiceMedia(), new Widgets.BoolCb() {
-            @Override public void on(boolean v) { P.put(P.NAV_VOICE_MEDIA, v); App.I.nav.voice.say("droite"); }
+            @Override public void on(boolean v) { P.put(P.NAV_VOICE_MEDIA, v); App.I.nav.voice.test(); }
         })), true);
         add(s, row("Panneaux de vitesse", "Limitation de la route où tu roules, en mode conduite", new Widgets.Toggle(a, P.speedSigns(), new Widgets.BoolCb() {
             @Override public void on(boolean v) { P.put(P.SPEED_SIGNS, v); }

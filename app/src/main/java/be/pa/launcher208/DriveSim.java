@@ -37,6 +37,7 @@ final class DriveSim {
             acc = new ArrayList<>(), head = new ArrayList<>();
     private final ArrayList<double[]> hist = new ArrayList<>();
     private int back, frames;
+    private double accMax, accMaxT;
     private double pX = Double.NaN, pY, pT;
 
     private final boolean ecart;
@@ -276,7 +277,9 @@ final class DriveSim {
                     double a1 = h1[0] - h0[0], a2 = h2[0] - h1[0];
                     if (a1 > 0.04 && a2 > 0.04) {
                         double v1x = (h1[1] - h0[1]) / a1, v1y = (h1[2] - h0[2]) / a1, v2x = (h2[1] - h1[1]) / a2, v2y = (h2[2] - h1[2]) / a2;
-                        acc.add(Math.hypot(v2x - v1x, v2y - v1y) / ((a1 + a2) / 2));
+                        double ac = Math.hypot(v2x - v1x, v2y - v1y) / ((a1 + a2) / 2);
+                        acc.add(ac);
+                        if (ac > accMax) { accMax = ac; accMaxT = t; }
                     }
                 }
                 if (tr[4] > 3) head.add(Math.abs(Glide.wrap(d[2] - Math.toDegrees(Math.atan2(tr[2], tr[3])))));
@@ -310,8 +313,8 @@ final class DriveSim {
         if (cur == this) cur = null;
         Log.i("Test208", String.format(Locale.ROOT,
                 "simu %s : %d images mesurées | écart %.1f m (95%% sous %.1f) | à côté de la route %.1f m (95%% sous %.1f)"
-                        + " | vitesse ±%.2f m/s (95%% sous %.2f) | à-coups 95%% sous %.1f m/s² (max %.1f) | cap 95%% sous %.1f° | recul %d | carte : %s | gps %.1f/s",
+                        + " | vitesse ±%.2f m/s (95%% sous %.2f) | à-coups 95%% sous %.1f m/s² (max %.1f à %.0f s) | cap 95%% sous %.1f° | recul %d | carte : %s | gps %.1f/s",
                 why, frames, mean(err), pct(err, .95), mean(side), pct(side, .95), mean(spd), pct(spd, .95),
-                pct(acc, .95), pct(acc, 1), pct(head, .95), back, MiniMap.statsNow(), App.I.loc.fixRate()));
+                pct(acc, .95), pct(acc, 1), accMaxT, pct(head, .95), back, MiniMap.statsNow(), App.I.loc.fixRate()));
     }
 }

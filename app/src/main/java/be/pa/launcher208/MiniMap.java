@@ -85,8 +85,10 @@ final class MiniMap {
     private double[] pending;   // dernière position en attente de collage (on ne garde que la plus récente)
     private boolean pendingMeasured, pendingBearingOk;
 
-    // Mouvement affiché
-    private final Glide glide = new Glide();
+    // Mouvement affiché. Gardé d'une carte à l'autre : si l'écran de conduite est quitté puis rouvert
+    // (par exemple après CarPlay), la voiture continue son mouvement au lieu de repartir de la position GPS.
+    private static Glide shared;
+    private Glide glide = new Glide();
     private boolean animating;
     private long lastFrameNs;
 
@@ -196,8 +198,15 @@ final class MiniMap {
             LocationTracker loc = App.I.loc;
             double lat = loc.lat != 0 ? loc.lat : P.lat(), lon = loc.lon != 0 ? loc.lon : P.lon();
             mv.getModel().mapViewPosition.setCenter(new LatLong(lat, lon));
-            // point de départ : la dernière position connue (la voiture s'y pose sans animation)
-            glide.onFix(System.nanoTime() / 1e6, lat, lon, 0, true, loc.bearing, true, null, null);
+            double nowMs = System.nanoTime() / 1e6;
+            if (shared != null && shared.ready() && nowMs - shared.time() < 15000) {
+                glide = shared; // mouvement en cours : on continue
+            } else {
+                glide = new Glide();
+                shared = glide;
+                // point de départ : la dernière position connue (la voiture s'y pose sans animation)
+                glide.onFix(nowMs, lat, lon, 0, true, loc.bearing, true, null, null);
+            }
             startThread();
             loc.addFix(fixListener);
             statStart = System.nanoTime();
@@ -275,6 +284,9 @@ final class MiniMap {
                     // navigation en cours : la voiture suit l'itinéraire prévu (elle tourne là où il tourne)
                     // (d'après la position GPS elle-même : une autre route toute proche ne « vole » pas la voiture)
                     double[][] np = f[3] >= Glide.STOP_MPS ? App.I.nav.pathAhead(f[1], f[2], 250) : null;
+                    // nettement plus près d'une autre route que de l'itinéraire : la voiture a pris un autre
+                    // chemin, on la montre tout de suite sur la route où elle est vraiment
+                    if (np != null && res != null && res.dist + 10 < App.I.nav.aheadD) np = null;
                     if (np != null) {
                         snapped++;
                         glide.onFix(f[0], np[0][0], np[1][0], f[3], measured, f[4], bOk, np[0], np[1]);

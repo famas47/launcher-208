@@ -42,6 +42,14 @@ final class NavVoice {
         if (mp == null) next();
     }
 
+    /** Essai (réglages) : même si la voix du guidage est coupée. */
+    void test() {
+        stop();
+        last = "d300_droite";
+        queue.add("d300_droite");
+        next();
+    }
+
     void stop() {
         queue.clear();
         if (mp != null) {
