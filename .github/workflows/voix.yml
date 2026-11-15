@@ -1,5 +1,6 @@
-name: Voix du GPS (essais)
+name: Voix du GPS
 
+# Enregistre les phrases du guidage avec la voix choisie (Siwis), pour les mettre dans le launcher.
 on:
   push:
     branches: [ voix ]
@@ -19,9 +20,13 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg espeak-ng
           pip install --quiet piper-tts
-          pip install --quiet kokoro soundfile "misaki[fr]" || echo "Kokoro non installé"
-      - name: Faire parler les voix
-        run: python3 outils/voix/essai.py sons
+      - name: Enregistrer les phrases
+        run: |
+          python3 outils/voix/phrases.py sons
+          ls sons | wc -l
+          du -sh sons
+          cp voix/MODEL_CARD sons/MODEL_CARD.txt
+          cd sons && zip -q -r ../voix-siwis.zip .
       - name: Brouillon avec les sons
         env:
           GH_TOKEN: ${{ github.token }}
@@ -30,4 +35,4 @@ jobs:
             --jq '.[] | select(.draft and (.tag_name | startswith("voix-essai-"))) | .id' |
           while read -r id; do gh api -X DELETE "repos/${{ github.repository }}/releases/$id"; done || true
           gh release create "voix-essai-${{ github.run_number }}" --draft --target "${{ github.sha }}" \
-            --title "Voix : essai ${{ github.run_number }}" --notes "Essais de voix (privés)." sons/*.mp3
+            --title "Voix : phrases ${{ github.run_number }}" --notes "Phrases du guidage (privé)." voix-siwis.zip
