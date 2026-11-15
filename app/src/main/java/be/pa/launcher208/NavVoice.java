@@ -16,6 +16,10 @@ import java.util.HashSet;
  * après l'autre. Pendant qu'elle parle, la musique est baissée (si l'appli qui joue le permet).
  */
 final class NavVoice {
+    /** Volume de la voix par rapport au son (très bas, bas, moyen, fort) : -18, -12, -6, 0 dB. */
+    static final float[] GAIN = {0.125f, 0.25f, 0.5f, 1f};
+    static final String[] VOL_NAMES = {"Très bas", "Bas", "Moyen", "Fort"};
+
     private final ArrayDeque<String> queue = new ArrayDeque<>();
     private MediaPlayer mp;
     private HashSet<String> clips;
@@ -68,9 +72,13 @@ final class NavVoice {
         try {
             AssetFileDescriptor fd = App.I.getAssets().openFd("voix/" + c + ".ogg");
             if (Build.VERSION.SDK_INT >= 21) {
+                // Par défaut avec le son de la musique : le bouton de volume de l'autoradio règle aussi la voix
+                // (le canal « GPS » d'Android a son propre volume, souvent au maximum sur les autoradios).
                 p.setAudioAttributes(new AudioAttributes.Builder()
-                        .setUsage(P.navVoiceMedia() ? AudioAttributes.USAGE_MEDIA : AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                        .setUsage(P.navVoiceGps() ? AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE : AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build());
+            } else {
+                p.setAudioStreamType(AudioManager.STREAM_MUSIC);
             }
             p.setDataSource(fd.getFileDescriptor(), fd.getStartOffset(), fd.getLength());
             fd.close();
@@ -90,6 +98,8 @@ final class NavVoice {
                 }
             });
             p.prepare();
+            float g = GAIN[P.navVoiceVol()];
+            p.setVolume(g, g);
             mp = p;
             p.start();
         } catch (Exception e) {

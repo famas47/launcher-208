@@ -41,7 +41,8 @@ final class P {
     static final String MAP_SNAP = "mapSnap";          // voiture collée à la route sur la carte
     static final String NAV_RECENT = "navRecent";      // dernières destinations (JSON)
     static final String NAV_VOICE = "navVoice";        // voix du guidage
-    static final String NAV_VOICE_MEDIA = "navVoiceMedia"; // voix par le son de la musique (si l'autre est muet)
+    static final String NAV_VOICE_GPS = "navVoiceGps"; // voix par le canal « GPS » d'Android (sinon : celui de la musique)
+    static final String NAV_VOICE_VOL = "navVoiceVol"; // volume de la voix : 0 très bas, 1 bas, 2 moyen, 3 fort
     static final String SPEED_SIGNS = "speedSigns";    // panneau de limitation de vitesse
     static final String MINIMAP = "minimap";
     // Voiture
@@ -128,7 +129,8 @@ final class P {
     static int mapColors() { return i(MAP_COLORS, 0); }
     static boolean mapSnap() { return b(MAP_SNAP, true); }
     static boolean navVoice() { return b(NAV_VOICE, true); }
-    static boolean navVoiceMedia() { return b(NAV_VOICE_MEDIA, false); }
+    static boolean navVoiceGps() { return b(NAV_VOICE_GPS, false); }
+    static int navVoiceVol() { int v = i(NAV_VOICE_VOL, 2); return v < 0 || v > 3 ? 2 : v; }
     static boolean speedSigns() { return b(SPEED_SIGNS, true); }
     static int mapView() { int v = i(MAP_VIEW, MiniMap.VIEW_3D); return v >= 0 && v <= 2 ? v : MiniMap.VIEW_3D; }
     static boolean minimap() { return b(MINIMAP, true); }

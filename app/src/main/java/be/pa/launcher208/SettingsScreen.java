@@ -249,8 +249,11 @@ final class SettingsScreen extends Screen {
         });
         listen.setLayoutParams(U.lp(U.WR, U.s(42)));
         add(s, row("Écouter la voix", "Pour vérifier à l'arrêt que tu l'entends bien", listen), true);
-        add(s, row("Voix par le son de la musique", "Si tu n'entends pas la voix du guidage", new Widgets.Toggle(a, P.navVoiceMedia(), new Widgets.BoolCb() {
-            @Override public void on(boolean v) { P.put(P.NAV_VOICE_MEDIA, v); App.I.nav.voice.test(); }
+        add(s, row("Volume de la voix", "Par rapport à ta musique", Widgets.seg(a, NavVoice.VOL_NAMES, P.navVoiceVol(), new Widgets.IntCb() {
+            @Override public void on(int v) { P.put(P.NAV_VOICE_VOL, v); App.I.nav.voice.test(); }
+        })), true);
+        add(s, row("Voix par le canal GPS", "Seulement si tu n'entends pas la voix autrement", new Widgets.Toggle(a, P.navVoiceGps(), new Widgets.BoolCb() {
+            @Override public void on(boolean v) { P.put(P.NAV_VOICE_GPS, v); App.I.nav.voice.test(); }
         })), true);
         add(s, row("Panneaux de vitesse", "Limitation de la route où tu roules, en mode conduite", new Widgets.Toggle(a, P.speedSigns(), new Widgets.BoolCb() {
             @Override public void on(boolean v) { P.put(P.SPEED_SIGNS, v); }
