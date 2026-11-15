@@ -373,7 +373,7 @@ final class HomeScreen extends Screen {
         // « Vitesse · recherche GPS » tant que le GPS n'a pas trouvé sa position (la vitesse vient du GPS)
         boolean gps = App.I.simSpeed >= 0 || App.I.loc.hasFix();
         if (speedLbl != null) U.text(speedLbl, gps ? "Vitesse" : "Vitesse · recherche GPS");
-        int s = Math.round(App.I.speed());
+        int s = Math.max(0, App.I.speedShown()); // comme le compteur de la voiture
         if (s != lastSpeed) {
             lastSpeed = s;
             speedVal.setText(vu(String.valueOf(s), " km/h", 14));

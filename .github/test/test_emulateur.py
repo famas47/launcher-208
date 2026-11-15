@@ -415,6 +415,8 @@ def simu(nom, hz=1, coller=1, video=False, captures=False):
     par = re.findall(r'(simu parcours.*)', t)
     log('  [%s] %s' % (nom, par[-1] if par else '(parcours introuvable)'))
     log('  [%s] %s' % (nom, fin if fin else '(pas de fin après 260 s)'))
+    va = re.findall(r'(vitesse affichée : .*)', t)
+    log('  [%s] %s' % (nom, va[-1] if va else '(vitesse affichée non mesurée)'))
     gfx('trajet simulé ' + nom)
     if rec:
         try:
@@ -496,16 +498,21 @@ if all(os.path.exists(f) for f in NAVF):
     avant = len(re.findall(r'simu (?:fin|arrêté|remplacé)', adb('logcat -d -s Test208:I')))
     hook(simu=1)
     t0 = time.time()
-    pris = False
+    pris = 0
     while time.time() - t0 < 200:
         time.sleep(3)
-        if not pris and time.time() - t0 > 25:
-            shot('28-nav-en-route', 0)
+        if pris < 2 and time.time() - t0 > 25 + pris * 22:
+            # la ligne bleue doit partir de la voiture : rien derrière elle
+            shot('28-nav-en-route' + ('' if pris == 0 else '-2'), 0)
             etat('en route')
-            pris = True
+            pris += 1
         m = re.findall(r'(simu (?:fin|arrêté|remplacé).*)', adb('logcat -d -s Test208:I'))
         if len(m) > avant:
             log('  ' + m[-1][:400])
+            t = adb('logcat -d -s Test208:I')
+            for motif in (r'(vitesse affichée : .*)', r'(ligne bleue : .*)'):
+                x = re.findall(motif, t)
+                log('  ' + (x[-1] if x else '(%s : pas de mesure)' % motif[1:14]))
             break
     shot('28-nav-arrivee', 1)
     etat('à l\'arrivée (navigation arrêtée ou « Tu es arrivé »)')

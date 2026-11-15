@@ -25,7 +25,6 @@ import org.mapsforge.map.layer.cache.InMemoryTileCache;
 import org.mapsforge.map.layer.cache.TileCache;
 import org.mapsforge.map.layer.labels.ThreadedLabelLayer;
 import org.mapsforge.map.layer.overlay.FixedPixelCircle;
-import org.mapsforge.map.layer.overlay.Polyline;
 import org.mapsforge.map.layer.renderer.TileRendererLayer;
 import org.mapsforge.map.model.MapViewPosition;
 import org.mapsforge.map.reader.MapFile;
@@ -102,7 +101,7 @@ final class MiniMap {
     private volatile String snapName = "";
     private volatile long snapNameAt;
     private byte followZoom;
-    private Polyline routeLine;
+    private RouteLayer routeLine;
     private FixedPixelCircle destDot;
     private int routeVersion = -1;
 
@@ -180,7 +179,7 @@ final class MiniMap {
             layer.setXmlRenderTheme(new AssetsRenderTheme(c.getAssets(), "map/", night ? "theme-nuit.xml" : "theme.xml"));
             mv.getLayerManager().getLayers().add(layer);
             // itinéraire de la navigation (sous les noms de rue) et point d'arrivée
-            routeLine = new Polyline(paint(night ? 0xF04C9BFF : 0xE82F7BF6, U.f(9), true), AndroidGraphicFactory.INSTANCE);
+            routeLine = new RouteLayer(paint(night ? 0xF04C9BFF : 0xE82F7BF6, U.f(9), true), AndroidGraphicFactory.INSTANCE);
             mv.getLayerManager().getLayers().add(routeLine);
             syncRoute();
             if (rotating) {
@@ -335,21 +334,32 @@ final class MiniMap {
         if (nav.version == routeVersion) return;
         routeVersion = nav.version;
         Router.Route r = nav.active ? nav.route : null;
-        routeLine.clear();
+        routeLine.set(r);
         if (destDot != null) {
             mv.getLayerManager().getLayers().remove(destDot);
             destDot = null;
         }
         if (r != null) {
-            java.util.ArrayList<LatLong> pts = new java.util.ArrayList<>(r.lat.length);
-            for (int i = 0; i < r.lat.length; i++) pts.add(new LatLong(r.lat[i], r.lon[i]));
-            routeLine.addPoints(pts);
+            cutRoute(); // la partie déjà parcourue n'apparaît pas (carte ouverte en cours de route)
             destDot = new FixedPixelCircle(new LatLong(nav.dest.lat, nav.dest.lon), U.f(9),
                     paint(0xFFE5484D, 0, false), paint(0xFFFFFFFF, U.f(3.5f), true));
             int at = mv.getLayerManager().getLayers().indexOf(routeLine) + 1;
             mv.getLayerManager().getLayers().add(at, destDot);
         }
-        routeLine.requestRedraw();
+    }
+
+    /** La ligne de l'itinéraire commence à la voiture affichée : ce qui est derrière elle disparaît. */
+    private void cutRoute() {
+        if (routeLine == null || !glide.ready()) return;
+        Nav nav = App.I.nav;
+        if (!nav.active || nav.version != routeVersion) return;
+        routeLine.cut(glide.lat(), glide.lon(), glide.heading(), nav.segment());
+    }
+
+    /** Distance depuis le départ où commence la ligne affichée (tests), -1 sans carte ou sans itinéraire. */
+    static double routeCut() {
+        MiniMap m = live;
+        return m == null || m.routeLine == null ? -1 : m.routeLine.cutAlong();
     }
 
     /** Appelé chaque seconde par l'écran de conduite : zoom selon la vitesse, nom de la rue, et relance du mouvement. */
@@ -419,6 +429,7 @@ final class MiniMap {
                 // changement de zoom en cours : Mapsforge l'anime ; on suit la voiture comme avant
                 anchored = false;
                 clearShift();
+                cutRoute();
                 pos.setCenter(new LatLong(lat, lon));
                 if (view != VIEW_NORTH) pos.setRotation(new Rotation((float) -head, w * 0.5f, h * 0.5f));
             } else {
@@ -447,6 +458,7 @@ final class MiniMap {
 
     /** Redessine la carte centrée sur un point exact de la grille des pixels (pas de tremblement d'un demi-pixel). */
     private void anchor(MapViewPosition pos, double px, double py, double head, byte z, long size, float w, float h) {
+        cutRoute(); // redessinée avec la carte : la ligne part de la voiture
         ax = Math.round(px);
         ay = Math.round(py);
         aRot = view == VIEW_NORTH ? 0 : head;

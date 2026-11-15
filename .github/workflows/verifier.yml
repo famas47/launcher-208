@@ -39,6 +39,12 @@ jobs:
       - name: Résumé
         run: python3 .github/test/resume_lint.py app/build/reports/lint-results-debug.xml | tee lint-resume.txt
 
+      - name: Banc d'essai de la vitesse affichée (sur ordinateur)
+        if: always()
+        run: |
+          javac -d /tmp/banc app/src/main/java/be/pa/launcher208/Speedo.java outils/vitesse/Banc.java
+          java -cp /tmp/banc be.pa.launcher208.Banc | tee vitesse-banc.txt
+
       - name: Garder le rapport
         if: always()
         uses: actions/upload-artifact@v7.0.2
@@ -46,6 +52,7 @@ jobs:
           name: lint
           path: |
             lint-resume.txt
+            vitesse-banc.txt
             app/build/reports/lint-results-debug.*
 
   emulateur:

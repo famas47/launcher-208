@@ -218,7 +218,8 @@ final class TestScreen extends Screen {
                 if (!l.permitted()) return "non autorisé";
                 float hz = l.fixRate();
                 return (l.hasFix() ? "position OK" : "recherche…") + " · " + l.satsUsed + "/" + l.sats + " satellites · "
-                        + Math.round(l.speedKmh) + " km/h"
+                        + Math.round(l.speedKmh) + " km/h GPS (écran " + Math.max(0, App.I.speedShown()) + ")"
+                        + String.format(java.util.Locale.ROOT, " · précision ±%.1f km/h", App.I.speedo.noise() * 3.6)
                         + (hz > 0 ? " · " + (hz >= 1.5 ? String.format(java.util.Locale.ROOT, "%.0f", hz) : "1") + " position(s)/s" : "");
             }
         }, null, null);

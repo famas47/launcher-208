@@ -43,6 +43,9 @@ final class Nav {
     private int stepIdx;
     private int spokenFar = -1, spokenNear = -1, spokenNow = -1; // instruction déjà annoncée (loin, près, maintenant)
     private int idx;            // segment de l'itinéraire où se trouve la voiture
+
+    /** Segment de l'itinéraire où la navigation voit la voiture. */
+    int segment() { return idx; }
     private long offSince, wrongWaySince, arrivedAt, lastRecalc;
     private boolean recalculating;
 

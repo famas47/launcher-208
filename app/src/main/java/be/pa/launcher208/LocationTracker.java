@@ -187,18 +187,21 @@ final class LocationTracker implements LocationListener {
             }
         }
         accuracy = l.hasAccuracy() ? l.getAccuracy() : -1;
+        // moment réel de la mesure (la position arrive un peu après) : la carte et la vitesse en tiennent compte
+        double nowMono = System.nanoTime() / 1e6, mono = nowMono;
+        if (Build.VERSION.SDK_INT >= 17 && l.getElapsedRealtimeNanos() > 0) {
+            double m = (l.getElapsedRealtimeNanos() - (SystemClock.elapsedRealtimeNanos() - System.nanoTime())) / 1e6;
+            if (m <= nowMono && nowMono - m < 1500) mono = m;
+        }
+        // vitesse affichée : toutes les mesures de la puce (jusqu'à 10 par seconde) ; la vitesse calculée
+        // à partir des positions, une fois par seconde
+        if (doppler || slow) App.I.speedo.onFix(mono, kmh / 3.6);
         lat = l.getLatitude();
         lon = l.getLongitude();
         lastFixUptime = nowUp;
         lastFixWall = Clock.now();
         fixTimes[fixTimesN++ % fixTimes.length] = nowUp;
         if (!fixListeners.isEmpty()) {
-            // moment réel de la mesure (la position arrive un peu après) : la carte en tient compte
-            double nowMono = System.nanoTime() / 1e6, mono = nowMono;
-            if (Build.VERSION.SDK_INT >= 17 && l.getElapsedRealtimeNanos() > 0) {
-                double m = (l.getElapsedRealtimeNanos() - (SystemClock.elapsedRealtimeNanos() - System.nanoTime())) / 1e6;
-                if (m <= nowMono && nowMono - m < 1500) mono = m;
-            }
             boolean bOk = kmh > 3 && nowUp - bearingAt < 2500;
             for (int i = 0; i < fixListeners.size(); i++) {
                 fixListeners.get(i).onFix(mono, lat, lon, kmh / 3.6f, doppler, bearing, bOk, accuracy);

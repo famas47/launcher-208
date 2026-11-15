@@ -9,7 +9,7 @@ import android.widget.TextView;
 /** Réglages du launcher (les réglages de l'autoradio restent dans ses écrans d'origine). */
 final class SettingsScreen extends Screen {
     private TextView phoneVal, cpApp, radioApp, musicApp, phoneApp, camApp, retVal, afterVal, kmhVal, odoVal, volVal, clockVal, nightRange, mapStatus, updStatus, version;
-    private TextView mapBtn, updBtn, navStatus, navBtn;
+    private TextView mapBtn, updBtn, navStatus, navBtn, offsetVal;
     private View nightRangeRow;
 
     SettingsScreen(HomeActivity a) { super(a); }
@@ -179,6 +179,26 @@ final class SettingsScreen extends Screen {
                 refresh();
             }
         })), true);
+        // Écart du compteur : la vitesse du mode conduite s'affiche comme au tableau de bord
+        LinearLayout offBtns = U.row(a);
+        offBtns.setGravity(Gravity.CENTER_VERTICAL);
+        TextView offMinus = actionBtn("−", Pal.card2, Pal.text, new Runnable() {
+            @Override public void run() { stepOffset(-1); }
+        });
+        TextView offPlus = actionBtn("+", Pal.card2, Pal.text, new Runnable() {
+            @Override public void run() { stepOffset(1); }
+        });
+        offMinus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, U.f(20));
+        offPlus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, U.f(20));
+        offMinus.setMinWidth(U.s(52));
+        offPlus.setMinWidth(U.s(52));
+        offsetVal = U.tv(a, "", 15, Pal.text, 600);
+        offsetVal.setGravity(Gravity.CENTER);
+        offsetVal.setMinWidth(U.s(92));
+        offBtns.addView(offMinus, U.lp(U.WR, U.s(42)));
+        offBtns.addView(offsetVal, U.lp(U.WR, U.s(42)));
+        offBtns.addView(offPlus, U.lp(U.WR, U.s(42)));
+        add(s, row("Vitesse comme le compteur", "Ce que le compteur affiche en plus (Peugeot : +3 en général)", offBtns), true);
         afterVal = U.tv(a, "", 15, Pal.text, 600);
         add(s, row("Activer après le contact", "Même si la vitesse n'arrive pas", valueBtn(afterVal, new Runnable() {
             @Override public void run() {
@@ -378,6 +398,13 @@ final class SettingsScreen extends Screen {
         return t;
     }
 
+    /** Écart du compteur : un km/h de plus ou de moins (de 0 à 10). */
+    private void stepOffset(int d) {
+        int v = Math.max(0, Math.min(P.SPEED_OFFSET_MAX, P.speedOffset() + d));
+        P.put(P.SPEED_OFFSET, v);
+        refresh();
+    }
+
     private TextView actionBtn(String label, int bg, int fg, Runnable click) {
         TextView t = U.tv(a, label, 14, fg, 600);
         t.setGravity(Gravity.CENTER);
@@ -441,6 +468,8 @@ final class SettingsScreen extends Screen {
         int am = P.driveAfter();
         afterVal.setText(am == 0 ? "Non" : am + " min");
         kmhVal.setText(P.driveKmh() + " km/h");
+        int off = P.speedOffset();
+        offsetVal.setText(off == 0 ? "Aucun" : "+" + off + " km/h");
         long km = LocationTracker.odometer();
         odoVal.setText(km > 0 ? Fmt.big(km) + " km" : "À saisir");
         volVal.setText("Max " + P.volStartMax());

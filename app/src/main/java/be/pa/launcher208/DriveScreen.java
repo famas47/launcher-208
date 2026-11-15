@@ -91,6 +91,7 @@ final class DriveScreen extends Screen {
         sp.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
         speed = U.tv(a, "0", 150, Pal.text, 300);
         U.spacing(speed, -6, 150);
+        speed.setFontFeatureSettings("tnum"); // chiffres de même largeur : le nombre ne bouge pas
         sp.addView(speed);
         sp.addView(U.tv(a, "km/h", 28, Pal.text2, 500), U.lpm(U.WR, U.WR, 14, 0, 0, 0)); // alignés sur la ligne de base
         sign = new NavViews.Sign(a);
@@ -218,6 +219,7 @@ final class DriveScreen extends Screen {
         mid.setGravity(Gravity.CENTER_HORIZONTAL);
         speed = U.tv(a, "0", 210, Pal.text, 300);
         U.spacing(speed, -9, 210);
+        speed.setFontFeatureSettings("tnum"); // chiffres de même largeur : le nombre ne bouge pas
         mid.addView(speed);
         mid.addView(U.tv(a, "km/h", 28, Pal.text2, 500), U.lpm(U.WR, U.WR, 0, 6, 0, 0));
         street = U.tv(a, "", 18, Pal.text, 600);
@@ -401,6 +403,10 @@ final class DriveScreen extends Screen {
 
     @Override void onShow() {
         shown = true;
+        if (speed != null) {
+            speed.removeCallbacks(speedRun);
+            speed.post(speedRun);
+        }
         App.I.nav.add(navChanged);
         updateNav();
         if (withMap && mapBox != null && mini == null && !mapPending) {
@@ -510,6 +516,7 @@ final class DriveScreen extends Screen {
 
     @Override void onHide() {
         shown = false;
+        if (speed != null) speed.removeCallbacks(speedRun);
         App.I.nav.remove(navChanged);
         mapPending = false;
         if (mapBox != null) mapBox.removeCallbacks(createMap);
@@ -527,14 +534,28 @@ final class DriveScreen extends Screen {
 
     @Override void destroy() { onHide(); }
 
-    @Override void tick() {
-        float v = App.I.speed();
+    /** Chiffre de la vitesse, 10 fois par seconde : il suit la voiture comme le compteur. */
+    private final Runnable speedRun = new Runnable() {
+        @Override public void run() {
+            if (!shown || speed == null) return;
+            updateSpeed();
+            speed.postDelayed(this, 100);
+        }
+    };
+
+    private void updateSpeed() {
+        if (speed == null) return;
         // sans GPS on affiche un tiret plutôt qu'un « 0 » qui ferait croire que la voiture est à l'arrêt
-        int s = App.I.speedKnown() ? Math.round(v) : -1;
+        int s = App.I.speedShown();
         if (s != lastSpeed) {
             lastSpeed = s;
             speed.setText(s < 0 ? "–" : String.valueOf(s));
         }
+    }
+
+    @Override void tick() {
+        float v = App.I.speed();
+        updateSpeed();
         LocationTracker l = App.I.loc;
         if (mini != null) mini.follow(l.lat, l.lon, v);
         String st = l.street;

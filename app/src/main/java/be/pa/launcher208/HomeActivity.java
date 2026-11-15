@@ -463,6 +463,7 @@ public class HomeActivity extends Activity {
         if (i.hasExtra("test_ecran")) showScreen(i.getIntExtra("test_ecran", S_HOME));
         if (i.hasExtra("test_onglet")) { showScreen(S_HOME); home().tab(i.getIntExtra("test_onglet", 0)); }
         if (i.hasExtra("test_porte")) App.I.doors.set(i.getIntExtra("test_porte", 0), "test automatique");
+        if (i.hasExtra("test_ecart_compteur")) P.put(P.SPEED_OFFSET, i.getIntExtra("test_ecart_compteur", 3));
         if (i.hasExtra("test_vitesse")) {
             App.I.simSpeed = i.getIntExtra("test_vitesse", -1);
             if (App.I.simSpeed < 0) exitDrive();
@@ -521,7 +522,7 @@ public class HomeActivity extends Activity {
                     + " Ko | meteo=" + (App.I.weather.fresh() ? App.I.weather.temp() + "°" : "aucune") + " | heure_suspecte=" + Clock.suspicious()
                     + " | ecart_internet_s=" + (Net.offset() / 1000) + " | tls=" + Net.lastTlsFix + " | conduite=" + driving + " | contact_s=" + (App.I.sinceContact() / 1000)
                     + " | apres_min=" + P.driveAfter() + " | attente_arret=" + rule.waitingAfterHand()
-                    + " | kmh=" + P.driveKmh() + " | vol=" + App.I.vol.get() + "/" + App.I.vol.max() + " methode=" + P.volMethod()
+                    + " | kmh=" + P.driveKmh() + " | vitesse_affichee=" + App.I.speedShown() + " ecart_compteur=" + P.speedOffset() + " | vol=" + App.I.vol.get() + "/" + App.I.vol.max() + " methode=" + P.volMethod()
                     + " fixe=" + App.I.vol.fixed() + " err=" + App.I.vol.lastError + " | carplay_auto=" + P.carplayAuto()
                     + " | bt=" + (BtPower.present(this) ? (BtPower.isOn(this) ? "on" : "off") : "absent") + " btlast=" + BtPower.last
                     + " | cp_action=" + PhoneWatch.lastAction + " | cap=" + Math.round(App.I.loc.bearing)

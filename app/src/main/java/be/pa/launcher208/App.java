@@ -36,6 +36,7 @@ public class App extends Application {
     final NavData navData = new NavData();
     final Nav nav = new Nav();
     volatile float simSpeed = -1; // mode test : vitesse simulée (-1 = non)
+    final Speedo speedo = new Speedo(); // vitesse affichée, comme le compteur
 
     // Contact mis : allumage de l'autoradio (ou réveil après sa veille). SystemClock.elapsedRealtime().
     volatile long contactAt;
@@ -90,6 +91,13 @@ public class App extends Application {
     float speed() {
         float s = simSpeed;
         return s >= 0 ? s : loc.speedKmh;
+    }
+
+    /** Vitesse à afficher (km/h), comme le compteur de la voiture (écart réglable), -1 si inconnue. */
+    int speedShown() {
+        float s = simSpeed;
+        if (s >= 0) return (int) Math.round(Speedo.dash(s, P.speedOffset()));
+        return speedo.shown(System.nanoTime() / 1e6, P.speedOffset());
     }
 
     /** Enregistre un récepteur d'annonces, compatible avec toutes les versions d'Android. */

@@ -44,6 +44,7 @@ final class P {
     static final String NAV_VOICE_GPS = "navVoiceGps"; // voix par le canal « GPS » d'Android (sinon : celui de la musique)
     static final String NAV_VOICE_VOL = "navVoiceVol"; // volume de la voix : 0 très bas, 1 bas, 2 moyen, 3 fort
     static final String SPEED_SIGNS = "speedSigns";    // panneau de limitation de vitesse
+    static final String SPEED_OFFSET = "speedOffset";  // km/h ajoutés comme le compteur de la voiture (0 = vitesse GPS)
     static final String MINIMAP = "minimap";
     // Voiture
     static final String ODO_BASE = "odoBase";          // km saisis
@@ -132,6 +133,9 @@ final class P {
     static boolean navVoiceGps() { return b(NAV_VOICE_GPS, false); }
     static int navVoiceVol() { int v = i(NAV_VOICE_VOL, 2); return v < 0 || v > 3 ? 2 : v; }
     static boolean speedSigns() { return b(SPEED_SIGNS, true); }
+    static final int SPEED_OFFSET_MAX = 10;
+    /** Écart du compteur (km/h, atteint dès 50 km/h) : +3 par défaut, ce qu'affichent en général les Peugeot. */
+    static int speedOffset() { int v = i(SPEED_OFFSET, 3); return v < 0 || v > SPEED_OFFSET_MAX ? 3 : v; }
     static int mapView() { int v = i(MAP_VIEW, MiniMap.VIEW_3D); return v >= 0 && v <= 2 ? v : MiniMap.VIEW_3D; }
     static boolean minimap() { return b(MINIMAP, true); }
     static int volMethod() { int m = i(VOL_METHOD, Volume.M_MUSIC); return m >= 0 && m < Volume.NAMES.length ? m : Volume.M_MUSIC; }

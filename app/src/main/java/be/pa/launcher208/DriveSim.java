@@ -41,6 +41,9 @@ final class DriveSim {
     private double pX = Double.NaN, pY, pT;
 
     private final boolean ecart;
+    // vitesse affichée : écart avec la vraie vitesse (km/h), nouvelle et ancienne façon, et ligne de l'itinéraire
+    private final ArrayList<Double> vErr = new ArrayList<>(), vOld = new ArrayList<>(), cutGap = new ArrayList<>();
+    private double nextSpeedT = 3, oldShown = -1, nextOldT = 3;
 
     private DriveSim(double hz, boolean ecart) { this.hz = hz; this.ecart = ecart; }
 
@@ -258,6 +261,24 @@ final class DriveSim {
             double[] d = MiniMap.displayed();
             // moment exact de l'image affichée (elle peut dater de l'image précédente)
             double t = d == null ? 0 : (d[3] * 1e6 - t0Ns) / 1e9;
+            double tNow = (ns - t0Ns) / 1e9;
+            if (tNow > nextSpeedT && tNow < tEnd) {
+                // 10 fois par seconde, comme l'écran : vitesse estimée maintenant contre la vraie
+                nextSpeedT += 0.1;
+                double est = App.I.speedo.mps(System.nanoTime() / 1e6);
+                double vt = truth(tNow)[4] * 3.6;
+                if (est >= 0) vErr.add(Math.abs(Math.round(est * 3.6) - vt));
+                // ancienne façon : vitesse du dernier point GPS, chiffre mis à jour chaque seconde
+                if (tNow > nextOldT) { oldShown = Math.round(App.I.loc.speedKmh); nextOldT += 1.0; }
+                if (oldShown >= 0) vOld.add(Math.abs(oldShown - vt));
+                // ligne bleue : elle doit commencer à la voiture affichée (distance le long de l'itinéraire)
+                double cut = MiniMap.routeCut();
+                double[] dd = MiniMap.displayed();
+                if (cut >= 0 && dd != null && App.I.nav.active) {
+                    double along = alongNav(dd[0], dd[1]);
+                    if (along >= 0) cutGap.add(along - cut);
+                }
+            }
             if (d != null && t > 3 && t > pT + 1e-6) {
                 frames++;
                 double x = (d[1] - lon0) * kx, y = (d[0] - lat0) * ky;
@@ -291,6 +312,22 @@ final class DriveSim {
         }
     };
 
+    /** Distance le long de l'itinéraire de la navigation du point le plus proche (m), -1 si loin. */
+    private static double alongNav(double lat, double lon) {
+        Router.Route r = App.I.nav.route;
+        if (r == null) return -1;
+        double kx = 111320.0 * Math.cos(Math.toRadians(lat)), ky = 110540.0, best = 30, along = -1;
+        for (int i = 0; i + 1 < r.lat.length; i++) {
+            double ax = (r.lon[i] - lon) * kx, ay = (r.lat[i] - lat) * ky;
+            double bx = (r.lon[i + 1] - lon) * kx, by = (r.lat[i + 1] - lat) * ky;
+            double sx = bx - ax, sy = by - ay, l2 = sx * sx + sy * sy;
+            double tt = l2 < 1e-9 ? 0 : Math.max(0, Math.min(1, -(ax * sx + ay * sy) / l2));
+            double qx = ax + tt * sx, qy = ay + tt * sy, d = Math.sqrt(qx * qx + qy * qy);
+            if (d < best) { best = d; along = r.cum[i] + tt * (r.cum[i + 1] - r.cum[i]); }
+        }
+        return along;
+    }
+
     private static double pct(ArrayList<Double> v, double p) {
         if (v.isEmpty()) return 0;
         ArrayList<Double> c = new ArrayList<>(v);
@@ -316,5 +353,15 @@ final class DriveSim {
                         + " | vitesse ±%.2f m/s (95%% sous %.2f) | à-coups 95%% sous %.1f m/s² (max %.1f à %.0f s) | cap 95%% sous %.1f° | recul %d | carte : %s | gps %.1f/s",
                 why, frames, mean(err), pct(err, .95), mean(side), pct(side, .95), mean(spd), pct(spd, .95),
                 pct(acc, .95), pct(acc, 1), accMaxT, pct(head, .95), back, MiniMap.statsNow(), App.I.loc.fixRate()));
+        Log.i("Test208", String.format(Locale.ROOT,
+                "vitesse affichée : écart %.2f km/h (95%% sous %.1f) | ancienne façon : écart %.2f km/h (95%% sous %.1f) | bruit appris %.2f m/s",
+                mean(vErr), pct(vErr, .95), mean(vOld), pct(vOld, .95), App.I.speedo.noise()));
+        if (!cutGap.isEmpty()) {
+            ArrayList<Double> ab = new ArrayList<>();
+            for (double g : cutGap) ab.add(Math.abs(g));
+            Log.i("Test208", String.format(Locale.ROOT,
+                    "ligne bleue : commence à %.1f m de la voiture en moyenne (95%% sous %.1f m, au plus %.1f m derrière, %.1f m devant) | %d mesures",
+                    mean(ab), pct(ab, .95), Math.max(0, pct(cutGap, 1)), Math.max(0, -pct(cutGap, 0)), cutGap.size()));
+        }
     }
 }
