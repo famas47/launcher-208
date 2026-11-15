@@ -8,10 +8,6 @@ on:
     branches: [ nav ]
     paths: [ 'outils/nav/**', '.github/workflows/navigation.yml' ]
   workflow_dispatch:
-    inputs:
-      publier:
-        description: 'Publier les fichiers pour l''autoradio (oui/non)'
-        default: 'non'
 
 permissions:
   contents: write
@@ -32,7 +28,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq osmium-tool
-          pip install --quiet osmium
+          pip install --quiet osmium numpy scipy
 
       - name: Télécharger la carte OpenStreetMap de Belgique
         run: |
@@ -75,7 +71,7 @@ jobs:
             --title "Navigation : essai ${{ github.run_number }}" --notes "Fichiers d'essai (privés)." $files
 
       - name: Publier pour l'autoradio
-        if: ${{ github.event.inputs.publier == 'oui' }}
+        if: ${{ hashFiles('sortie/belgique-routes.bin') != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
