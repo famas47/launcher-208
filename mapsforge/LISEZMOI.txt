@@ -6,4 +6,6 @@ Modifications faites pour Launcher 208 (repérées par « Launcher 208 » dans l
   pour que l'écran reste fluide pendant que la carte se dessine.
 - map/.../layer/renderer/TileRendererLayer.java : le thème de la carte n'est lu qu'une seule fois (au lieu de
   deux fois de suite au démarrage de la carte), dans un fil en priorité basse.
+- map/.../controller/FrameBufferController.java : quand la carte tourne, la rotation demandée est appliquée
+  tout de suite à l'image déjà prête, sans attendre que la suivante soit dessinée.
 Le reste est identique à la version d'origine.

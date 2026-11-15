@@ -38,6 +38,7 @@ final class P {
     static final String DRIVE_KMH = "driveKmh";        // vitesse d'activation (km/h)
     static final String MAP_COLORS = "mapColors";      // couleurs de la carte : 0 auto, 1 jour, 2 nuit
     static final String MAP_VIEW = "mapView";          // vue de la carte : MiniMap.VIEW_*
+    static final String MAP_SNAP = "mapSnap";          // voiture collée à la route sur la carte
     static final String MINIMAP = "minimap";
     // Voiture
     static final String ODO_BASE = "odoBase";          // km saisis
@@ -121,6 +122,7 @@ final class P {
     /** Vitesse à partir de laquelle le mode conduite s'active. */
     static int driveKmh() { return i(DRIVE_KMH, 1); }
     static int mapColors() { return i(MAP_COLORS, 0); }
+    static boolean mapSnap() { return b(MAP_SNAP, true); }
     static int mapView() { int v = i(MAP_VIEW, MiniMap.VIEW_3D); return v >= 0 && v <= 2 ? v : MiniMap.VIEW_3D; }
     static boolean minimap() { return b(MINIMAP, true); }
     static int volMethod() { int m = i(VOL_METHOD, Volume.M_MUSIC); return m >= 0 && m < Volume.NAMES.length ? m : Volume.M_MUSIC; }

@@ -138,9 +138,15 @@ public final class FrameBufferController implements Observer {
 
         float currentScaleFactor = this.model.frameBufferModel.isScaleEnabled() ? (float) (scaleFactor / Math.pow(2, mapPositionFrameBuffer.zoomLevel)) : 1;
 
+        // Launcher 208 : avec ROTATION_MATRIX, l'image préparée est toujours « nord en haut » et c'est cette
+        // matrice qui la fait tourner. On utilise donc tout de suite la rotation demandée (et pas celle de
+        // l'image précédente) : la carte tourne au même moment qu'elle se déplace, sans attendre la
+        // prochaine image (seuls les noms de rue restent penchés de quelques degrés jusque-là).
+        Rotation rotation = Parameters.ROTATION_MATRIX && mapViewPosition.rotation != null
+                ? mapViewPosition.rotation : mapPositionFrameBuffer.rotation;
         this.frameBuffer.adjustMatrix((float) diffX, (float) diffY, currentScaleFactor, mapViewDimension,
                 (float) pivotDistanceX, (float) pivotDistanceY,
-                mapPositionFrameBuffer.rotation, mapViewCenterX, mapViewCenterY);
+                rotation, mapViewCenterX, mapViewCenterY);
     }
 
     private boolean dimensionChangeNeeded(Dimension mapViewDimension, double overdrawFactor) {

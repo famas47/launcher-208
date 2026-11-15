@@ -206,6 +206,9 @@ final class SettingsScreen extends Screen {
         })), true);
         add(s, row("Couleurs de la carte", "« Auto » : jour ou nuit comme l'écran", Widgets.seg(a, new String[]{"Auto", "Jour", "Nuit"}, P.mapColors(), new Widgets.IntCb() {
             @Override public void on(int v) { P.put(P.MAP_COLORS, v); }
+        })), true);
+        add(s, row("Voiture sur la route", "Corrige le GPS qui se décale à côté de la route", new Widgets.Toggle(a, P.mapSnap(), new Widgets.BoolCb() {
+            @Override public void on(boolean v) { P.put(P.MAP_SNAP, v); }
         })), false);
 
         s = section(c2, "Carte de Belgique");

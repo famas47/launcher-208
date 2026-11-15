@@ -37,6 +37,23 @@ final class LocationTracker implements LocationListener {
     volatile float accuracy = -1;
     String street = "";            // rempli par la minimap
 
+    /** Reçoit chaque position GPS, aussi souvent que la puce en donne (pour la carte du mode conduite). */
+    interface FixListener {
+        /**
+         * @param monoMs   moment de la mesure (ms, horloge de System.nanoTime, comme les images de l'écran)
+         * @param measured vrai si la vitesse vient de la puce (précise), faux si elle est calculée
+         */
+        void onFix(double monoMs, double lat, double lon, float mps, boolean measured, float bearing,
+                   boolean bearingOk, float accuracy);
+    }
+
+    private final ArrayList<FixListener> fixListeners = new ArrayList<>();
+    private final long[] fixTimes = new long[32];  // moments des dernières positions (pour la cadence du GPS)
+    private int fixTimesN;
+    private float calcKmh;          // vitesse calculée à partir des positions (puce sans vitesse)
+    private long bearingAt;         // moment où le cap a été mis à jour
+    volatile boolean simulating;    // trajet simulé en cours (tests) : le vrai GPS est ignoré
+
     private Location prev;
     private long stopSince;        // début de l'arrêt pendant un trajet (uptime)
     private long stopSinceWall;    // même moment, en heure réelle
@@ -66,7 +83,9 @@ final class LocationTracker implements LocationListener {
         if (running || lm == null || !permitted()) return;
         try {
             if (lm.getProvider(LocationManager.GPS_PROVIDER) != null) {
-                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, this, Looper.getMainLooper());
+                // Aussi souvent que la puce le permet (beaucoup en donnent 1 par seconde, certaines 5 ou 10) :
+                // la voiture suit alors la route encore plus précisément sur la carte.
+                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 100L, 0f, this, Looper.getMainLooper());
                 running = true;
             }
             // Après un démarrage complet de l'autoradio, le GPS repart de zéro : on lui demande de récupérer
@@ -125,15 +144,28 @@ final class LocationTracker implements LocationListener {
     };
 
     @Override public void onLocationChanged(Location l) {
+        if (simulating) return; // trajet simulé (tests) : on ignore le vrai GPS
+        handle(l);
+    }
+
+    /** Position d'un trajet simulé (tests seulement). */
+    void simFix(Location l) { handle(l); }
+
+    private void handle(Location l) {
         long nowUp = SystemClock.uptimeMillis();
         Clock.onGpsTime(l.getTime());
+        // Une puce qui donne plusieurs positions par seconde : la carte les reçoit toutes, mais les calculs
+        // de vitesse (sans puce), de trajet et de kilomètres se font une fois par seconde, comme avant.
+        boolean slow = prev == null || l.getTime() - prev.getTime() >= 900 || l.getTime() < prev.getTime();
         float kmh;
         boolean doppler = l.hasSpeed(); // vitesse mesurée par la puce GPS (précise même très lentement)
         if (doppler) kmh = l.getSpeed() * 3.6f;
+        else if (!slow) kmh = calcKmh;
         else if (prev != null && l.getTime() > prev.getTime() && (!l.hasAccuracy() || l.getAccuracy() < 25)) {
             kmh = prev.distanceTo(l) / ((l.getTime() - prev.getTime()) / 1000f) * 3.6f; // GPS sans vitesse : on la calcule
+            calcKmh = kmh;
         }
-        else kmh = 0;
+        else { kmh = 0; calcKmh = 0; }
         // à l'arrêt, le GPS « bouge » un peu : on ignore les toutes petites vitesses. La vitesse calculée à partir
         // des positions est trop imprécise sous 2 km/h ; celle de la puce suit le réglage (1 km/h possible).
         float floor = doppler ? Math.min(2f, P.driveKmh()) : 2f;
@@ -144,12 +176,14 @@ final class LocationTracker implements LocationListener {
         // vraiment avancé (plus de 8 m, à plus de 7 km/h : pas le petit « bougé » du GPS à l'arrêt).
         if (kmh > 3 && l.hasBearing() && l.getBearing() != 0f) {
             bearing = l.getBearing();
-        } else if (prev != null && l.getTime() > prev.getTime()) {
+            bearingAt = nowUp;
+        } else if (slow && prev != null && l.getTime() > prev.getTime()) {
             float d = prev.distanceTo(l);
             float mps = d / ((l.getTime() - prev.getTime()) / 1000f);
             if (d > 8f && mps > 2f) {
                 float b = prev.bearingTo(l);
                 bearing = b < 0 ? b + 360f : b;
+                bearingAt = nowUp;
             }
         }
         accuracy = l.hasAccuracy() ? l.getAccuracy() : -1;
@@ -157,6 +191,20 @@ final class LocationTracker implements LocationListener {
         lon = l.getLongitude();
         lastFixUptime = nowUp;
         lastFixWall = Clock.now();
+        fixTimes[fixTimesN++ % fixTimes.length] = nowUp;
+        if (!fixListeners.isEmpty()) {
+            // moment réel de la mesure (la position arrive un peu après) : la carte en tient compte
+            double nowMono = System.nanoTime() / 1e6, mono = nowMono;
+            if (Build.VERSION.SDK_INT >= 17 && l.getElapsedRealtimeNanos() > 0) {
+                double m = (l.getElapsedRealtimeNanos() - (SystemClock.elapsedRealtimeNanos() - System.nanoTime())) / 1e6;
+                if (m <= nowMono && nowMono - m < 1500) mono = m;
+            }
+            boolean bOk = kmh > 3 && nowUp - bearingAt < 2500;
+            for (int i = 0; i < fixListeners.size(); i++) {
+                fixListeners.get(i).onFix(mono, lat, lon, kmh / 3.6f, doppler, bearing, bOk, accuracy);
+            }
+        }
+        if (!slow) return;
 
         // Distance parcourue (on ignore les points imprécis et le « bruit » à l'arrêt)
         if (prev != null && (!l.hasAccuracy() || l.getAccuracy() < 30)) {
@@ -220,6 +268,26 @@ final class LocationTracker implements LocationListener {
     private void savePos(double la, double lo) {
         if (la == 0 && lo == 0) return;
         P.putPos(P.LAST_LAT, P.LAST_LON, la, lo);
+    }
+
+    void addFix(FixListener f) { if (!fixListeners.contains(f)) fixListeners.add(f); }
+    void removeFix(FixListener f) { fixListeners.remove(f); }
+
+    /** Positions GPS reçues par seconde (sur les 10 dernières secondes), 0 si plus de GPS. */
+    float fixRate() {
+        int n = Math.min(fixTimesN, fixTimes.length);
+        if (n < 2) return 0;
+        long now = SystemClock.uptimeMillis(), newest = fixTimes[(fixTimesN - 1) % fixTimes.length];
+        if (now - newest > 3000) return 0;
+        int c = 0;
+        long oldest = newest;
+        for (int i = 0; i < n; i++) {
+            long t = fixTimes[(fixTimesN - 1 - i) % fixTimes.length];
+            if (newest - t > 10000) break;
+            oldest = t;
+            c++;
+        }
+        return c < 2 || newest == oldest ? 0 : (c - 1) * 1000f / (newest - oldest);
     }
 
     void add(Runnable r) { if (!listeners.contains(r)) listeners.add(r); }

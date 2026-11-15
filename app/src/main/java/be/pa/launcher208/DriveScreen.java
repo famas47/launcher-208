@@ -355,8 +355,7 @@ final class DriveScreen extends Screen {
                 left = (bw - mw) / 2;
                 top = above - ahead;
             }
-            float centerY = 0.5f;
-            MapView mv = mini.create(a, view, night, centerY);
+            MapView mv = mini.create(a, view, night);
             if (mv != null) {
                 MiniMap.Frame fr = new MiniMap.Frame(a);
                 fr.setClipChildren(false);
@@ -374,6 +373,11 @@ final class DriveScreen extends Screen {
                 if (view == MiniMap.VIEW_NORTH) {
                     marker = new Widgets.Marker(a);
                     mapBox.addView(marker, 1, U.flm(U.s(84), U.s(84), Gravity.CENTER, 0, 0, 0, 0));
+                    // la flèche tourne à chaque image, en douceur, avec le cap affiché
+                    final Widgets.Marker mk = marker;
+                    mini.setHeadingListener(new MiniMap.HeadingListener() {
+                        @Override public void onHeading(float d) { mk.setBearing(d); }
+                    });
                 } else {
                     // ta 208 vue de derrière, posée sur la route, avec un léger halo bleu dessous
                     View glow = new View(a);
@@ -440,10 +444,7 @@ final class DriveScreen extends Screen {
             speed.setText(s < 0 ? "–" : String.valueOf(s));
         }
         LocationTracker l = App.I.loc;
-        if (mini != null) {
-            mini.follow(l.lat, l.lon, v);
-            if (marker != null) marker.setBearing(l.bearing);
-        }
+        if (mini != null) mini.follow(l.lat, l.lon, v);
         String st = l.street;
         if (mapStreet != null) {
             U.text(mapStreet, st);

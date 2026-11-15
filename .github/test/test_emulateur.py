@@ -380,6 +380,61 @@ hook(vitesse=-1)
 time.sleep(1)
 hook(carte_vue=0, carte_couleurs=0)
 log('  vues de la carte : captures 13-carte-a-plat, 13-carte-nord-en-haut, 13-carte-3d-nuit-forcee')
+
+
+# ---------- Trajet simulé sur de vraies routes : précision et fluidité de la carte ----------
+def simu(nom, hz=1, coller=1, video=False, captures=False):
+    """Trajet d'environ 1 km dans Mons (démarrage, virages, arrêt) avec un GPS réaliste (erreur de 2,5 m)."""
+    hook(vitesse=-1)
+    time.sleep(1.5)
+    adb('emu geo fix 3.9517 50.4542')
+    time.sleep(1.5)
+    hook(coller=coller, carte_vue=0, carte_couleurs=0)
+    avant = len(re.findall(r'simu (?:fin|arrêté|remplacé)', adb('logcat -d -s Test208:I')))
+    gfx_reset()
+    hook(simu=hz)
+    rec = None
+    if video:
+        rec = subprocess.Popen('adb shell screenrecord --time-limit 25 --bit-rate 6000000 /sdcard/simu.mp4',
+                               shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    t0 = time.time()
+    fin = ''
+    n = 0
+    while time.time() - t0 < 260:
+        time.sleep(3)
+        if captures and n < 3 and time.time() - t0 > 12 + n * 14:
+            shot('27-simu-%s-%d' % (nom, n + 1), 0)
+            n += 1
+        t = adb('logcat -d -s Test208:I')
+        m = re.findall(r'(simu (?:fin|arrêté|remplacé).*)', t)
+        if len(m) > avant:
+            fin = m[-1]
+            break
+    t = adb('logcat -d -s Test208:I')
+    par = re.findall(r'(simu parcours.*)', t)
+    log('  [%s] %s' % (nom, par[-1] if par else '(parcours introuvable)'))
+    log('  [%s] %s' % (nom, fin if fin else '(pas de fin après 260 s)'))
+    gfx('trajet simulé ' + nom)
+    if rec:
+        try:
+            rec.wait(timeout=40)
+        except Exception:
+            rec.kill()
+        time.sleep(2)
+        adb('pull /sdcard/simu.mp4 "%s"' % os.path.join(OUT, 'simu-%s.mp4' % nom), 120)
+    hook(simu_stop=1)
+    time.sleep(1)
+
+
+log('\n--- Trajet simulé sur de vraies routes de Mons (GPS 1 par seconde, erreur 2,5 m) ---')
+phase('trajet simulé')
+simu('3d-collee', video=True, captures=True)
+simu('3d-sans-collage', coller=0)
+if API >= 35:
+    simu('3d-gps-5hz', hz=5)
+hook(coller=1)
+hook(vitesse=-1)
+time.sleep(1)
 hook(vitesse=-1)
 shot('14-retour-accueil', 2)
 hook(onglet=1)

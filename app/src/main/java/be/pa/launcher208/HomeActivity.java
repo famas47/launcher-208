@@ -472,6 +472,9 @@ public class HomeActivity extends Activity {
             App.I.contactAt -= i.getIntExtra("test_contact", 0) * 1000L;
         }
         if (i.hasExtra("test_quitter")) leaveDriveByHand();
+        if (i.hasExtra("test_simu")) DriveSim.start(i.getIntExtra("test_simu", 1));
+        if (i.hasExtra("test_simu_stop")) DriveSim.stopNow();
+        if (i.hasExtra("test_coller")) P.put(P.MAP_SNAP, i.getIntExtra("test_coller", 1) == 1);
         if (i.hasExtra("test_maj")) App.I.upd.check(this);
         if (i.hasExtra("test_carte")) {
             if (i.getIntExtra("test_carte", 0) == 1) App.I.mapdl.download(this);
@@ -486,7 +489,8 @@ public class HomeActivity extends Activity {
                     + " | kmh=" + P.driveKmh() + " | vol=" + App.I.vol.get() + "/" + App.I.vol.max() + " methode=" + P.volMethod()
                     + " fixe=" + App.I.vol.fixed() + " err=" + App.I.vol.lastError + " | carplay_auto=" + P.carplayAuto()
                     + " | bt=" + (BtPower.present(this) ? (BtPower.isOn(this) ? "on" : "off") : "absent") + " btlast=" + BtPower.last
-                    + " | cp_action=" + PhoneWatch.lastAction + " | cap=" + Math.round(App.I.loc.bearing));
+                    + " | cp_action=" + PhoneWatch.lastAction + " | cap=" + Math.round(App.I.loc.bearing)
+                    + " | gps_hz=" + String.format(java.util.Locale.ROOT, "%.1f", App.I.loc.fixRate()) + " | carte_stats=" + MiniMap.statsNow());
         }
         if (i.hasExtra("test_info")) root.post(new Runnable() {
             @Override public void run() { testLog(root); }

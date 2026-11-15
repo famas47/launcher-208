@@ -280,7 +280,7 @@ final class Widgets {
 
         Marker(Context c) { super(c); }
 
-        void setBearing(float b) { if (Math.abs(b - bearing) > 1f) { bearing = b; invalidate(); } }
+        void setBearing(float b) { if (Math.abs(b - bearing) > 0.3f) { bearing = b; invalidate(); } }
 
         @Override protected void onDraw(Canvas c) {
             float w = getWidth(), h = getHeight(), cx = w / 2, cy = h / 2;

@@ -216,8 +216,10 @@ final class TestScreen extends Screen {
             @Override public String get() {
                 LocationTracker l = App.I.loc;
                 if (!l.permitted()) return "non autorisé";
+                float hz = l.fixRate();
                 return (l.hasFix() ? "position OK" : "recherche…") + " · " + l.satsUsed + "/" + l.sats + " satellites · "
-                        + Math.round(l.speedKmh) + " km/h";
+                        + Math.round(l.speedKmh) + " km/h"
+                        + (hz > 0 ? " · " + (hz >= 1.5 ? String.format(java.util.Locale.ROOT, "%.0f", hz) : "1") + " position(s)/s" : "");
             }
         }, null, null);
         check(s, "Heure", new Status() {
@@ -284,6 +286,12 @@ final class TestScreen extends Screen {
             }
         }));
         s.addView(U.line(a));
+        check(s, "Carte du mode conduite", new Status() {
+            @Override public String get() {
+                String st = MiniMap.statsNow();
+                return st.isEmpty() ? "pas encore affichée depuis l'allumage" : st;
+            }
+        }, null, null);
         check(s, "Contact mis", new Status() {
             @Override public String get() {
                 int am = P.driveAfter();
