@@ -112,6 +112,7 @@ final class Router {
     static final class Route {
         double[] lat, lon;   // ligne de l'itinéraire, du départ à l'arrivée
         double[] cum;        // distance depuis le départ à chaque point (m)
+        double[] cumT;       // durée prévue depuis le départ à chaque point (s)
         double meters, seconds;
         int[] edges;         // tronçons parcourus (2e = de u vers v, 2e+1 = de v vers u)
         int[] edgeFirstPoint;// indice du premier point de chaque tronçon dans lat/lon
@@ -215,7 +216,7 @@ final class Router {
         int[] edges = new int[seq.size()];
         for (int i = 0; i < edges.length; i++) edges[i] = seq.get(edges.length - 1 - i);
         Route r = build(edges, from, to);
-        r.seconds = bestGoal;
+        r.seconds = r.cumT[r.cumT.length - 1];
         r.explored = explored;
         return r;
     }
@@ -334,6 +335,13 @@ final class Router {
             }
         }
         r.meters = r.cum[n - 1];
+        // durée : chaque bout de ligne à la vitesse de son tronçon
+        r.cumT = new double[n];
+        int k = 0;
+        for (int i = 1; i < n; i++) {
+            while (k + 1 < edges.length && firstPt[k + 1] <= i - 1) k++;
+            r.cumT[i] = r.cumT[i - 1] + (r.cum[i] - r.cum[i - 1]) / g.mps(edges[k] >> 1);
+        }
         r.edges = edges;
         r.edgeFirstPoint = firstPt;
         r.edgeSeconds = secs;

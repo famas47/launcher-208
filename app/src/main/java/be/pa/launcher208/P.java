@@ -39,6 +39,7 @@ final class P {
     static final String MAP_COLORS = "mapColors";      // couleurs de la carte : 0 auto, 1 jour, 2 nuit
     static final String MAP_VIEW = "mapView";          // vue de la carte : MiniMap.VIEW_*
     static final String MAP_SNAP = "mapSnap";          // voiture collée à la route sur la carte
+    static final String NAV_RECENT = "navRecent";      // dernières destinations (JSON)
     static final String MINIMAP = "minimap";
     // Voiture
     static final String ODO_BASE = "odoBase";          // km saisis

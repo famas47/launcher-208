@@ -33,6 +33,8 @@ public class App extends Application {
     Night night;
     MapDl mapdl;
     Updater upd;
+    final NavData navData = new NavData();
+    final Nav nav = new Nav();
     volatile float simSpeed = -1; // mode test : vitesse simulée (-1 = non)
 
     // Contact mis : allumage de l'autoradio (ou réveil après sa veille). SystemClock.elapsedRealtime().

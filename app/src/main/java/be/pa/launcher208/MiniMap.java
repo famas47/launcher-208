@@ -24,6 +24,8 @@ import org.mapsforge.map.datastore.Way;
 import org.mapsforge.map.layer.cache.InMemoryTileCache;
 import org.mapsforge.map.layer.cache.TileCache;
 import org.mapsforge.map.layer.labels.ThreadedLabelLayer;
+import org.mapsforge.map.layer.overlay.FixedPixelCircle;
+import org.mapsforge.map.layer.overlay.Polyline;
 import org.mapsforge.map.layer.renderer.TileRendererLayer;
 import org.mapsforge.map.model.MapViewPosition;
 import org.mapsforge.map.reader.MapFile;
@@ -98,6 +100,9 @@ final class MiniMap {
     private volatile String snapName = "";
     private volatile long snapNameAt;
     private byte followZoom;
+    private Polyline routeLine;
+    private FixedPixelCircle destDot;
+    private int routeVersion = -1;
 
     // Mesures (mode test et tests automatiques)
     private int frames, slowFrames, redraws, fixes, snapped;
@@ -172,6 +177,10 @@ final class MiniMap {
                     false, !rotating, rotating, AndroidGraphicFactory.INSTANCE);
             layer.setXmlRenderTheme(new AssetsRenderTheme(c.getAssets(), "map/", night ? "theme-nuit.xml" : "theme.xml"));
             mv.getLayerManager().getLayers().add(layer);
+            // itinéraire de la navigation (sous les noms de rue) et point d'arrivée
+            routeLine = new Polyline(paint(night ? 0xF04C9BFF : 0xE82F7BF6, U.f(9), true), AndroidGraphicFactory.INSTANCE);
+            mv.getLayerManager().getLayers().add(routeLine);
+            syncRoute();
             if (rotating) {
                 mv.getLayerManager().getLayers().add(new ThreadedLabelLayer(AndroidGraphicFactory.INSTANCE, layer.getLabelStore()));
                 // La zone dessinée est un carré de la taille de la diagonale (elle couvre toutes les rotations) ;
@@ -280,9 +289,54 @@ final class MiniMap {
         bgH = new Handler(thread.getLooper());
     }
 
+    /** Prépare le moteur de dessin de Mapsforge (une seule fois). */
+    static void ensureGraphics() {
+        if (!graphicsReady) {
+            AndroidGraphicFactory.createInstance(App.I);
+            Parameters.NUMBER_OF_THREADS = 2;
+            graphicsReady = true;
+        }
+    }
+
+    static org.mapsforge.core.graphics.Paint paint(int color, float width, boolean stroke) {
+        org.mapsforge.core.graphics.Paint p = AndroidGraphicFactory.INSTANCE.createPaint();
+        p.setColor(color);
+        p.setStyle(stroke ? org.mapsforge.core.graphics.Style.STROKE : org.mapsforge.core.graphics.Style.FILL);
+        p.setStrokeWidth(width);
+        p.setStrokeCap(org.mapsforge.core.graphics.Cap.ROUND);
+        p.setStrokeJoin(org.mapsforge.core.graphics.Join.ROUND);
+        return p;
+    }
+
+    /** Dessine (ou enlève) l'itinéraire de la navigation en cours, s'il a changé. */
+    void syncRoute() {
+        if (mv == null || routeLine == null) return;
+        Nav nav = App.I.nav;
+        if (nav.version == routeVersion) return;
+        routeVersion = nav.version;
+        Router.Route r = nav.active ? nav.route : null;
+        routeLine.clear();
+        if (destDot != null) {
+            mv.getLayerManager().getLayers().remove(destDot);
+            destDot = null;
+        }
+        if (r != null) {
+            java.util.ArrayList<LatLong> pts = new java.util.ArrayList<>(r.lat.length);
+            for (int i = 0; i < r.lat.length; i++) pts.add(new LatLong(r.lat[i], r.lon[i]));
+            routeLine.addPoints(pts);
+            destDot = new FixedPixelCircle(new LatLong(nav.dest.lat, nav.dest.lon), U.f(9),
+                    paint(0xFFE5484D, 0, false), paint(0xFFFFFFFF, U.f(3.5f), true));
+            int at = mv.getLayerManager().getLayers().indexOf(routeLine) + 1;
+            mv.getLayerManager().getLayers().add(at, destDot);
+        }
+        routeLine.requestRedraw();
+    }
+
     /** Appelé chaque seconde par l'écran de conduite : zoom selon la vitesse, nom de la rue, et relance du mouvement. */
     void follow(double lat, double lon, float kmh) {
-        if (mv == null || (lat == 0 && lon == 0)) return;
+        if (mv == null) return;
+        syncRoute();
+        if (lat == 0 && lon == 0) return;
         // Zoom selon la vitesse, avec une marge pour ne pas changer sans arrêt autour de 50 ou 90 km/h
         byte z = followZoom == 0 ? (kmh > 90 ? (byte) 14 : kmh > 55 ? (byte) 15 : (byte) 16) : followZoom;
         if (z == 16 && kmh > 62) z = 15;

@@ -539,13 +539,19 @@ def build_routes(path, way_ids, way_nodes_start, node_ids, node_lat, node_lon, w
 
 # ---------------------------------------------------------------------------------------------------------
 def build_search(path, places, streets, addrs, pois):
-    loc_grid = Grid()
+    loc_grid = Grid()     # villes et villages (la commune ou l'ancienne commune)
+    sub_grid = Grid()     # quartiers
     for (la, lo, name, pl) in places:
-        if pl in LOCALITY_TYPES:
+        if pl in ('city', 'town', 'village'):
             loc_grid.add(la, lo, name)
+        elif pl in ('suburb', 'quarter', 'neighbourhood'):
+            sub_grid.add(la, lo, name)
 
     def locality(la, lo):
         return loc_grid.nearest(la, lo, 15000) or ''
+
+    def quarter(la, lo):
+        return sub_grid.nearest(la, lo, 1500, ring=1) or ''
 
     # Rues : même nom et même localité = une seule rue
     groups = collections.defaultdict(list)
@@ -593,11 +599,13 @@ def build_search(path, places, streets, addrs, pois):
         seen_places.add(k)
         lab, imp = PLACES[pl]
         sub = lab
+        toks = tokens(name)
         if pl not in ('city', 'town'):
             near = locality(la, lo)
             if near and norm(near) != norm(name):
                 sub = lab + ' · ' + near
-        entries.append((0, name, sub, la, lo, imp, None, tokens(name)))
+                toks += tokens(near)
+        entries.append((0, name, sub, la, lo, imp, None, toks))
     for ent in street_entries:
         name, loc, la, lo, houses, cities, pcs = ent
         city = cities.most_common(1)[0][0] if cities else loc
@@ -614,8 +622,9 @@ def build_search(path, places, streets, addrs, pois):
             continue
         seen_poi.add(k)
         loc = locality(la, lo)
+        q = quarter(la, lo)
         imp = 2 if lab in ('Hôpital', 'Gare', 'Université', 'Haute école', 'Centre commercial', 'Aéroport') else 1
-        entries.append((2, name, lab + (' · ' + loc if loc else ''), la, lo, imp, None, tokens(name, lab, loc)))
+        entries.append((2, name, lab + (' · ' + loc if loc else ''), la, lo, imp, None, tokens(name, lab, loc, q)))
     log('entrées de recherche : %d' % len(entries))
 
     # Textes

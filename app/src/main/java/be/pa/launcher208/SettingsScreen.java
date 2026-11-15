@@ -9,7 +9,7 @@ import android.widget.TextView;
 /** Réglages du launcher (les réglages de l'autoradio restent dans ses écrans d'origine). */
 final class SettingsScreen extends Screen {
     private TextView phoneVal, cpApp, radioApp, musicApp, phoneApp, camApp, retVal, afterVal, kmhVal, odoVal, volVal, clockVal, nightRange, mapStatus, updStatus, version;
-    private TextView mapBtn, updBtn;
+    private TextView mapBtn, updBtn, navStatus, navBtn;
     private View nightRangeRow;
 
     SettingsScreen(HomeActivity a) { super(a); }
@@ -225,6 +225,22 @@ final class SettingsScreen extends Screen {
         }), U.lp(U.WR, U.s(42)));
         s.addView(mb, U.lpm(U.WR, U.WR, 0, 0, 0, 10));
 
+        s = section(c2, "Navigation (Belgique)");
+        navStatus = U.tvMulti(a, "", 13, Pal.text2, 400, 3);
+        s.addView(navStatus, U.lpm(U.M, U.WR, 0, 6, 0, 10));
+        navBtn = actionBtn("Télécharger (Wi-Fi)", Pal.BLUE, Pal.WHITE, new Runnable() {
+            @Override public void run() {
+                NavData d = App.I.navData;
+                if (d.running) { d.cancel(); return; }
+                if (!Weather.online(a)) {
+                    android.widget.Toast.makeText(a, "Pas d'Internet : connecte l'autoradio au Wi-Fi d'abord", android.widget.Toast.LENGTH_LONG).show();
+                    return;
+                }
+                d.download(a);
+            }
+        });
+        s.addView(navBtn, U.lpm(U.WR, U.s(42), 0, 0, 0, 10));
+
         s = section(c2, "Heure et voiture");
         clockVal = U.tv(a, "", 14, Pal.text, 600);
         add(s, row("Heure", "Celle de l'autoradio (reprise par le tableau de bord)", valueBtn(clockVal, new Runnable() {
@@ -265,6 +281,9 @@ final class SettingsScreen extends Screen {
         c2.addView(orig, U.lpm(U.M, U.WR, 0, 0, 0, 12));
 
         App.I.mapdl.onProgress = new Runnable() {
+            @Override public void run() { refresh(); }
+        };
+        App.I.navData.onProgress = new Runnable() {
             @Override public void run() { refresh(); }
         };
         App.I.upd.onChange = new Runnable() {
@@ -429,6 +448,21 @@ final class SettingsScreen extends Screen {
             mapBtn.setText(part > 0 ? "Reprendre" : "Télécharger (Wi-Fi)");
         }
 
+        NavData nd = App.I.navData;
+        if (nd.running) {
+            String pr = nd.total > 0 ? (nd.done * 100 / nd.total) + " % · " + (nd.done >> 20) + " / " + (nd.total >> 20) + " Mo" : (nd.done >> 20) + " Mo";
+            navStatus.setText(nd.status + " " + pr);
+            navBtn.setText("Arrêter");
+        } else if (NavData.available(a)) {
+            navStatus.setText("Installée (" + (NavData.size(a) >> 20) + " Mo) : routes, adresses et lieux de Belgique. "
+                    + (nd.status.isEmpty() || nd.status.equals("Prêt") ? "Tu peux la retélécharger pour la mettre à jour." : nd.status));
+            navBtn.setText("Mettre à jour (Wi-Fi)");
+        } else {
+            navStatus.setText(nd.status.isEmpty() ? "Pour chercher une adresse et calculer un trajet, sans Internet ensuite. Environ 150 Mo, en Wi-Fi."
+                    : nd.status);
+            navBtn.setText("Télécharger (Wi-Fi)");
+        }
+
         Updater u = App.I.upd;
         version.setText("Launcher 208 · version " + Updater.current());
         updStatus.setText(u.percent >= 0 ? u.status + " " + u.percent + " %" : u.status.isEmpty() ? "Touche « Mise à jour » pour vérifier sur GitHub." : u.status);
@@ -437,6 +471,7 @@ final class SettingsScreen extends Screen {
 
     @Override void destroy() {
         App.I.mapdl.onProgress = null;
+        App.I.navData.onProgress = null;
         App.I.upd.onChange = null;
     }
 }

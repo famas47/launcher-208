@@ -63,6 +63,13 @@ final class DriveSim {
 
     /** Parcours d'environ 1,2 km sur les routes, en continuant le plus droit possible aux carrefours. */
     private String buildRoute(double lat, double lon) {
+        Router.Route navRoute = App.I.nav.active ? App.I.nav.route : null;
+        if (navRoute != null && navRoute.lat.length >= 2) {
+            // navigation en cours : on suit son itinéraire (au plus 2,5 km)
+            ArrayList<double[]> pts = new ArrayList<>();
+            for (int i = 0; i < navRoute.lat.length && navRoute.cum[i] <= 2500; i++) pts.add(new double[]{navRoute.lat[i], navRoute.lon[i]});
+            if (pts.size() >= 2) return setRoute(pts) + " (itinéraire de la navigation)";
+        }
         MapFile mf = null;
         try {
             mf = new MapFile(MiniMap.file(App.I), "fr");
@@ -94,6 +101,17 @@ final class DriveSim {
                 r = nr;
             }
             if (pts.size() < 2 || len < 200) return "parcours trop court (" + Math.round(len) + " m)";
+            return setRoute(pts);
+        } catch (Throwable t) {
+            rx = null;
+            return "erreur " + t;
+        } finally {
+            if (mf != null) try { mf.close(); } catch (Throwable ignored) { }
+        }
+    }
+
+    private String setRoute(ArrayList<double[]> pts) {
+        try {
             lat0 = pts.get(0)[0];
             lon0 = pts.get(0)[1];
             kx = 111320.0 * Math.cos(Math.toRadians(lat0));
@@ -111,8 +129,6 @@ final class DriveSim {
         } catch (Throwable t) {
             rx = null;
             return "erreur " + t;
-        } finally {
-            if (mf != null) try { mf.close(); } catch (Throwable ignored) { }
         }
     }
 

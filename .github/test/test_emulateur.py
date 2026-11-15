@@ -426,6 +426,73 @@ def simu(nom, hz=1, coller=1, video=False, captures=False):
     time.sleep(1)
 
 
+# ---------- Navigation : chercher une destination, voir le trajet, le suivre ----------
+NAVF = ['belgique-routes.bin', 'belgique-adresses.bin']
+if all(os.path.exists(f) for f in NAVF):
+    log('\n--- Navigation (recherche, calcul du trajet, guidage sur la carte) ---')
+    phase('navigation')
+    d = '/sdcard/Android/data/%s/files' % PKG
+    for f in NAVF:
+        log('  %s copié : %s' % (f, last(adb('push "%s" %s/%s' % (f, d, f), 600))))
+    hook(vitesse=-1)
+    time.sleep(1)
+    adb('emu geo fix 3.9517 50.4542')
+    time.sleep(2)
+    hook(nav_ouvrir=1)
+    shot('28-nav-ouverte', 2)
+    # vraie frappe au clavier de l'émulateur
+    adb('shell input text "condorcet"')
+    shot('28-nav-clavier', 2.5)
+    for q in ('gare de mons', 'rue de nimy 15 mons', 'hopital mons', 'grand place bruxelles', 'pairi daiza'):
+        hook(nav_chercher=q)
+        time.sleep(2.5)
+    shot('28-nav-resultats', 0.5)
+    t = adb('logcat -d -s Test208:I')
+    for l_ in re.findall(r'(recherche « .*)', t)[-6:]:
+        log('  ' + l_[:300])
+    hook(nav_choisir=0)
+    time.sleep(5)
+    shot('28-nav-apercu', 1)
+    t = adb('logcat -d -s Test208:I')
+    tv = re.findall(r'(trajet vers .*)', t)
+    log('  ' + (tv[-1] if tv else '(pas de trajet calculé)'))
+    # un long trajet aussi (temps de calcul sur l'émulateur)
+    hook(nav_chercher='liege')
+    time.sleep(3)
+    hook(nav_choisir=0)
+    time.sleep(8)
+    t = adb('logcat -d -s Test208:I')
+    tv = re.findall(r'(trajet vers .*)', t)
+    log('  long trajet : ' + (tv[-1] if tv else '(pas de trajet calculé)'))
+    hook(nav_chercher='hopital mons')
+    time.sleep(3)
+    hook(nav_choisir=0)
+    time.sleep(5)
+    hook(nav_demarrer=1)
+    shot('28-nav-conduite', 4)
+    etat('navigation démarrée')
+    avant = len(re.findall(r'simu (?:fin|arrêté|remplacé)', adb('logcat -d -s Test208:I')))
+    hook(simu=1)
+    t0 = time.time()
+    pris = False
+    while time.time() - t0 < 200:
+        time.sleep(3)
+        if not pris and time.time() - t0 > 25:
+            shot('28-nav-en-route', 0)
+            etat('en route')
+            pris = True
+        m = re.findall(r'(simu (?:fin|arrêté|remplacé).*)', adb('logcat -d -s Test208:I'))
+        if len(m) > avant:
+            log('  ' + m[-1][:400])
+            break
+    shot('28-nav-arrivee', 1)
+    etat('à l\'arrivée (navigation arrêtée ou « Tu es arrivé »)')
+    hook(nav_arreter=1)
+    hook(vitesse=-1)
+    time.sleep(1)
+else:
+    log('\n--- Navigation : données absentes, test sauté ---')
+
 log('\n--- Trajet simulé sur de vraies routes de Mons (GPS 1 par seconde, erreur 2,5 m) ---')
 phase('trajet simulé')
 simu('3d-collee', video=True, captures=True)

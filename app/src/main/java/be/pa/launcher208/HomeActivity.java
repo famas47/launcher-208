@@ -35,6 +35,7 @@ public class HomeActivity extends Activity {
     private final Screen[] screens = new Screen[5];
     private int screen = S_HOME;
     private DriveScreen drive;
+    private NavSearch navSearch;
     private boolean driving, resumed, nightNow;
     private final DriveRule rule = new DriveRule();
     private int lastMinute = -1;
@@ -210,6 +211,8 @@ public class HomeActivity extends Activity {
         for (Screen s : screens) if (s != null) s.destroy();
         for (int i = 0; i < screens.length; i++) screens[i] = null;
         if (drive != null) { drive.onHide(); drive.destroy(); drive = null; }
+        boolean navOpen = navSearch != null && navSearch.view().getParent() != null;
+        if (navSearch != null) { navSearch.destroy(); navSearch = null; }
         root.removeAllViews();
         root.setBackgroundColor(Pal.bg);
         mainRow = U.row(this);
@@ -226,6 +229,31 @@ public class HomeActivity extends Activity {
             driving = false;
             enterDrive();
         }
+        if (navOpen) openNav();
+    }
+
+    // ---------- Navigation ----------
+    /** Écran « Aller à » (recherche d'une destination), par-dessus tout le reste. */
+    void openNav() {
+        if (navSearch == null) navSearch = new NavSearch(this);
+        View v = navSearch.view();
+        if (v.getParent() == null) root.addView(v, new FrameLayout.LayoutParams(U.M, U.M));
+        v.bringToFront();
+        navSearch.onShow();
+    }
+
+    void closeNav() {
+        if (navSearch != null && navSearch.view().getParent() != null) root.removeView(navSearch.view());
+    }
+
+    boolean navOpen() { return navSearch != null && navSearch.view().getParent() != null; }
+
+    /** Navigation démarrée : on passe en mode conduite pour voir le trajet sur la carte. */
+    void showNavigation() {
+        if (!driving) {
+            rule.entered(false);
+            enterDrive();
+        } else if (drive != null) drive.refresh();
     }
 
     Screen screen(int i) {
@@ -346,7 +374,8 @@ public class HomeActivity extends Activity {
             rule.entered(r == DriveRule.ENTER_SPEED);
             App.mark(r == DriveRule.ENTER_SPEED ? "conduite : vitesse" : "conduite : minuteur après le contact");
             enterDrive();
-        } else if (r == DriveRule.EXIT) {
+        } else if (r == DriveRule.EXIT && !App.I.nav.active) {
+            // pendant une navigation, le mode conduite reste affiché même à l'arrêt
             exitDrive();
         }
     }
@@ -472,6 +501,11 @@ public class HomeActivity extends Activity {
             App.I.contactAt -= i.getIntExtra("test_contact", 0) * 1000L;
         }
         if (i.hasExtra("test_quitter")) leaveDriveByHand();
+        if (i.hasExtra("test_nav_chercher")) { openNav(); navSearch.testType(i.getStringExtra("test_nav_chercher")); }
+        if (i.hasExtra("test_nav_choisir") && navSearch != null) navSearch.testPick(i.getIntExtra("test_nav_choisir", 0));
+        if (i.hasExtra("test_nav_demarrer") && navSearch != null) navSearch.testStart();
+        if (i.hasExtra("test_nav_ouvrir")) openNav();
+        if (i.hasExtra("test_nav_arreter")) App.I.nav.stop();
         if (i.hasExtra("test_simu")) DriveSim.start(i.getIntExtra("test_simu", 1));
         if (i.hasExtra("test_simu_stop")) DriveSim.stopNow();
         if (i.hasExtra("test_coller")) P.put(P.MAP_SNAP, i.getIntExtra("test_coller", 1) == 1);
@@ -490,7 +524,9 @@ public class HomeActivity extends Activity {
                     + " fixe=" + App.I.vol.fixed() + " err=" + App.I.vol.lastError + " | carplay_auto=" + P.carplayAuto()
                     + " | bt=" + (BtPower.present(this) ? (BtPower.isOn(this) ? "on" : "off") : "absent") + " btlast=" + BtPower.last
                     + " | cp_action=" + PhoneWatch.lastAction + " | cap=" + Math.round(App.I.loc.bearing)
-                    + " | gps_hz=" + String.format(java.util.Locale.ROOT, "%.1f", App.I.loc.fixRate()) + " | carte_stats=" + MiniMap.statsNow());
+                    + " | gps_hz=" + String.format(java.util.Locale.ROOT, "%.1f", App.I.loc.fixRate()) + " | carte_stats=" + MiniMap.statsNow()
+                    + " | nav=" + (App.I.nav.active ? App.I.nav.dest.name + " reste " + Math.round(App.I.nav.remainingM) + " m "
+                    + Math.round(App.I.nav.remainingS) + " s etat=" + App.I.nav.state : "non") + " | nav_donnees=" + NavData.available(this));
         }
         if (i.hasExtra("test_info")) root.post(new Runnable() {
             @Override public void run() { testLog(root); }
@@ -517,6 +553,7 @@ public class HomeActivity extends Activity {
     }
 
     @Override public void onBackPressed() {
+        if (navOpen()) { navSearch.close(); return; }
         if (screen == S_CONN || screen == S_TEST) showScreen(S_SETTINGS);
         else if (screen != S_HOME) showScreen(S_HOME);
         else if (screens[S_HOME] != null) home().tab(0);
@@ -526,6 +563,7 @@ public class HomeActivity extends Activity {
         h.removeCallbacksAndMessages(null);
         for (Screen s : screens) if (s != null) s.destroy();
         if (drive != null) drive.destroy();
+        if (navSearch != null) navSearch.destroy();
         super.onDestroy();
     }
 

@@ -28,6 +28,7 @@ final class HomeScreen extends Screen {
     private MaintPanel maint;
     private LinearLayout segBox;
     private TextView[] segTabs;
+    private TextView goText;
     private TextView subtitle;
     private CarView car;
     private View arrowL, arrowR, doorChip, topCard, permChip;
@@ -81,6 +82,26 @@ final class HomeScreen extends Screen {
         head.addView(titles, U.lpW(1));
         // hauteur selon le contenu : sinon la rangée prend la hauteur des onglets et coupe le sous-titre en deux
         ((LinearLayout.LayoutParams) titles.getLayoutParams()).height = U.WR;
+        // « Aller à » : chercher une destination (ou revenir à la navigation en cours)
+        LinearLayout go = U.row(a);
+        go.setGravity(Gravity.CENTER_VERTICAL);
+        go.setBackground(U.grad(0xFF4C8DFF, 0xFF2563EB, 21));
+        U.shadow(go, 4);
+        U.pad(go, 14, 0, 18, 0);
+        go.addView(U.icon(a, R.drawable.ic_search, 20, Pal.WHITE));
+        goText = U.tv(a, "Aller à", 16, Pal.WHITE, 700);
+        goText.setSingleLine(true);
+        goText.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        goText.setMaxWidth(U.s(220));
+        go.addView(goText, U.lpm(U.WR, U.WR, 8, 0, 0, 0));
+        U.click(go, 21, new Runnable() {
+            @Override public void run() {
+                if (App.I.nav.active) a.showNavigation();
+                else a.openNav();
+            }
+        });
+        go.setContentDescription("Chercher une destination");
+        head.addView(go, U.lpm(U.WR, U.s(42), 0, 0, 12, 0));
         segBox = Widgets.seg(a, new String[]{"Voiture", "Trajets", "Entretien"}, 0, new Widgets.IntCb() {
             @Override public void on(int v) { tab(v); }
         });
@@ -363,6 +384,7 @@ final class HomeScreen extends Screen {
     @Override void refresh() {
         if (root == null) return;
         updatePermChip();
+        if (goText != null) U.text(goText, App.I.nav.active && App.I.nav.dest != null ? "Vers " + App.I.nav.dest.name : "Aller à");
         long now = Clock.now();
         clock.setText(Fmt.hhmm(now));
         if (Clock.suspicious()) {

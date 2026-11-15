@@ -23,6 +23,8 @@ final class DriveScreen extends Screen {
     private MiniMap mini;
     private Widgets.Marker marker;
     private TextView north;
+    private LinearLayout navBanner;
+    private TextView navTitle, navInfo;
     private ImageView playIcon;
     private boolean withMap, shown, mapPending;
     private int lastSpeed = Integer.MIN_VALUE, radioPoll; // -1 = vitesse inconnue (tiret)
@@ -109,6 +111,32 @@ final class DriveScreen extends Screen {
         mapBox.addView(north, U.flm(U.s(42), U.s(42), Gravity.TOP | Gravity.RIGHT, 0, 12, 12, 0));
         mapTrip = pill("", 15, 600);
         mapBox.addView(mapTrip, U.flm(U.WR, U.s(40), Gravity.BOTTOM | Gravity.LEFT, 14, 0, 0, 14));
+        // Navigation en cours : destination, distance, durée, heure d'arrivée, et bouton pour arrêter
+        navBanner = U.row(a);
+        navBanner.setGravity(Gravity.CENTER_VERTICAL);
+        navBanner.setBackground(U.rr(Pal.night ? 0xF516181C : 0xF5FFFFFF, 20));
+        U.shadow(navBanner, 5);
+        U.pad(navBanner, 14, 8, 8, 8);
+        navBanner.addView(U.box(a, 40, U.grad(0xFF4C8DFF, 0xFF2563EB, 12), R.drawable.ic_route, 22, Pal.WHITE));
+        LinearLayout nt = U.col(a);
+        navTitle = U.tv(a, "", 17, Pal.text, 700);
+        navTitle.setSingleLine(true);
+        navTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        nt.addView(navTitle);
+        navInfo = U.tv(a, "", 15, Pal.text2, 500);
+        navInfo.setSingleLine(true);
+        nt.addView(navInfo, U.lpm(U.WR, U.WR, 0, 1, 0, 0));
+        navBanner.addView(nt, U.lpm(U.WR, U.WR, 12, 0, 12, 0));
+        TextView stop = U.tv(a, "✕", 20, Pal.text, 600);
+        stop.setGravity(Gravity.CENTER);
+        stop.setBackground(U.oval(Pal.card2));
+        U.click(stop, 22, new Runnable() {
+            @Override public void run() { App.I.nav.stop(); }
+        });
+        stop.setContentDescription("Arrêter la navigation");
+        navBanner.addView(stop, U.lp(U.s(44), U.s(44)));
+        navBanner.setVisibility(View.GONE);
+        mapBox.addView(navBanner, U.flm(U.WR, U.WR, Gravity.TOP | Gravity.LEFT, 14, 14, 70, 0));
         TextView osm = U.tv(a, "© OpenStreetMap", 11, Pal.text2, 400);
         osm.setBackground(U.rr(Pal.night ? 0xD916181C : 0xD9FFFFFF, 6));
         U.pad(osm, 7, 2, 7, 2);
@@ -147,6 +175,18 @@ final class DriveScreen extends Screen {
         });
         home.setContentDescription("Quitter le mode conduite");
         t.addView(home, U.lpm(U.WR, U.s(40), 10, 0, 0, 0));
+        LinearLayout go = U.row(a);
+        go.setGravity(Gravity.CENTER_VERTICAL);
+        go.setBackground(U.rr(Pal.card, 20));
+        U.shadow(go, 3);
+        U.pad(go, 10, 0, 16, 0);
+        go.addView(U.icon(a, R.drawable.ic_search, 20, Pal.text));
+        go.addView(U.tv(a, "Aller à", 15, Pal.text, 600), U.lpm(U.WR, U.WR, 8, 0, 0, 0));
+        U.click(go, 20, new Runnable() {
+            @Override public void run() { a.openNav(); }
+        });
+        go.setContentDescription("Chercher une destination");
+        t.addView(go, U.lpm(U.WR, U.s(40), 10, 0, 0, 0));
         t.addView(U.flex(a));
         clock = U.tv(a, "", 30, Pal.text, 400);
         t.addView(clock);
@@ -310,8 +350,32 @@ final class DriveScreen extends Screen {
     }
 
     // ---------- Vie de l'écran ----------
+    private final Runnable navChanged = new Runnable() {
+        @Override public void run() { updateNav(); }
+    };
+
+    /** Bandeau de navigation : vers où, ce qu'il reste, heure d'arrivée. */
+    private void updateNav() {
+        if (navBanner == null) return;
+        Nav n = App.I.nav;
+        if (!n.active || n.dest == null) {
+            navBanner.setVisibility(View.GONE);
+        } else {
+            navBanner.setVisibility(View.VISIBLE);
+            U.text(navTitle, n.dest.name);
+            String info = n.state.isEmpty()
+                    ? NavSearch.dist(n.remainingM) + " · " + Fmt.dur(Math.max(1, Math.round(n.remainingS / 60))) + " · arrivée " + Fmt.hhmm(n.arrival())
+                    : n.state;
+            U.text(navInfo, info);
+        }
+        if (mapStreet != null && n.active) mapStreet.setVisibility(View.GONE);
+        if (mini != null) mini.syncRoute();
+    }
+
     @Override void onShow() {
         shown = true;
+        App.I.nav.add(navChanged);
+        updateNav();
         if (withMap && mapBox != null && mini == null && !mapPending) {
             // L'écran de conduite s'affiche tout de suite ; la carte est préparée juste après sa première image.
             mapPending = true;
@@ -419,6 +483,7 @@ final class DriveScreen extends Screen {
 
     @Override void onHide() {
         shown = false;
+        App.I.nav.remove(navChanged);
         mapPending = false;
         if (mapBox != null) mapBox.removeCallbacks(createMap);
         if (mini != null) {
@@ -426,7 +491,7 @@ final class DriveScreen extends Screen {
             mini = null;
             if (mapBox != null) {
                 // Enlève la carte, la voiture ou la flèche (on garde les étiquettes)
-                while (mapBox.getChildCount() > 5) mapBox.removeViewAt(0);
+                while (mapBox.getChildCount() > 6) mapBox.removeViewAt(0);
                 if (north != null) north.setRotation(0);
             }
             marker = null;
@@ -448,8 +513,9 @@ final class DriveScreen extends Screen {
         String st = l.street;
         if (mapStreet != null) {
             U.text(mapStreet, st);
-            mapStreet.setVisibility(st.isEmpty() ? View.GONE : View.VISIBLE);
+            mapStreet.setVisibility(st.isEmpty() || App.I.nav.active ? View.GONE : View.VISIBLE);
         }
+        if (App.I.nav.active) updateNav(); // heure d'arrivée qui avance même à l'arrêt
         if (street != null) {
             U.text(street, st);
             street.setVisibility(st.isEmpty() ? View.INVISIBLE : View.VISIBLE);
