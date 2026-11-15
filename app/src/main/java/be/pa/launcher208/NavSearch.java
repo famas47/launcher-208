@@ -257,6 +257,11 @@ final class NavSearch {
     private void search(final String q) {
         final int my = ++seq;
         if (q.trim().isEmpty()) { showRecents(); return; }
+        if (AddrIndex.norm(q).length() < 2) { // une seule lettre : trop de réponses, on attend la suite
+            list.removeAllViews();
+            message("Continue à taper…");
+            return;
+        }
         if (!NavData.available(a)) { showRecents(); return; }
         if (preview.getVisibility() == View.VISIBLE) showSearch();
         final LocationTracker l = App.I.loc;
