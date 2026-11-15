@@ -105,11 +105,11 @@ final class MiniMap {
     private static volatile MiniMap live;     // carte affichée en ce moment
     private static volatile String lastStats = "";
 
-    /** Position et cap affichés en ce moment (tests automatiques), ou null sans carte. */
+    /** Position, cap et moment (ms) de ce qui est affiché (tests automatiques), ou null sans carte. */
     static double[] displayed() {
         MiniMap m = live;
         if (m == null || !m.glide.ready()) return null;
-        return new double[]{m.glide.lat(), m.glide.lon(), m.glide.heading()};
+        return new double[]{m.glide.lat(), m.glide.lon(), m.glide.heading(), m.glide.time()};
     }
 
     /** Mesures de la carte affichée (ou de la dernière), pour le mode test. */

@@ -55,6 +55,9 @@ final class Glide {
 
     double heading() { return h; }
 
+    /** Moment (ms) de la position affichée. */
+    double time() { return lastMs; }
+
     /** Vitesse affichée (m/s), pour les tests. */
     double speed() { return Math.sqrt(vx * vx + vy * vy); }
 

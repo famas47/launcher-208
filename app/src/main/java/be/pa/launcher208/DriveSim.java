@@ -205,14 +205,15 @@ final class DriveSim {
         @Override public void doFrame(long ns) {
             if (!running) return;
             double[] d = MiniMap.displayed();
-            double t = (ns - t0Ns) / 1e9;
-            if (d != null && t > 3) {
+            // moment exact de l'image affichée (elle peut dater de l'image précédente)
+            double t = d == null ? 0 : (d[3] * 1e6 - t0Ns) / 1e9;
+            if (d != null && t > 3 && t > pT + 1e-6) {
                 frames++;
                 double x = (d[1] - lon0) * kx, y = (d[0] - lat0) * ky;
                 double[] tr = truth(t);
                 err.add(Math.hypot(x - tr[0], y - tr[1]));
                 side.add(Math.abs((x - tr[0]) * tr[3] - (y - tr[1]) * tr[2]));
-                if (!Double.isNaN(pX) && t > pT) {
+                if (!Double.isNaN(pX)) {
                     double dt = t - pT, vx = (x - pX) / dt, vy = (y - pY) / dt;
                     spd.add(Math.abs(Math.hypot(vx, vy) - tr[4]));
                     if ((x - pX) * tr[2] + (y - pY) * tr[3] < -1e-3 && tr[4] > 1) back++;
