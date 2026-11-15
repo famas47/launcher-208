@@ -283,7 +283,7 @@ final class MiniMap {
                     if (mv == null || destroyed) return;
                     // navigation en cours : la voiture suit l'itinéraire prévu (elle tourne là où il tourne)
                     // (d'après la position GPS elle-même : une autre route toute proche ne « vole » pas la voiture)
-                    double[][] np = f[3] >= Glide.STOP_MPS ? App.I.nav.pathAhead(f[1], f[2], 250) : null;
+                    double[][] np = f[3] >= Glide.STOP_MPS ? App.I.nav.pathAhead(f[1], f[2], 250, bOk ? f[4] : Double.NaN) : null;
                     // nettement plus près d'une autre route que de l'itinéraire : la voiture a pris un autre
                     // chemin, on la montre tout de suite sur la route où elle est vraiment
                     if (np != null && res != null && res.dist + 10 < App.I.nav.aheadD) np = null;

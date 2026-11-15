@@ -448,7 +448,7 @@ if all(os.path.exists(f) for f in NAVF):
         if 'nav_donnees=true' in e and '(en cours)' not in e:
             ok = True
             break
-        if 'Interrompu' in e:
+        if 'nav_dl=Interrompu' in e:
             break
     m = re.search(r'nav_dl=([^|]*)', e)
     log('  téléchargement depuis l\'appli : %s en %.0f s (%s)' % ('RÉUSSI' if ok else 'PROBLÈME', time.time() - t0, m.group(1).strip() if m else '?'))

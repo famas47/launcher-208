@@ -214,7 +214,10 @@ final class Nav {
      * L'itinéraire devant ce point (250 m), en commençant par le point de l'itinéraire le plus proche : la voiture
      * affichée suit ainsi les virages prévus entre deux positions GPS. Null si le point est loin de l'itinéraire.
      */
-    double[][] pathAhead(double lat, double lon, double maxM) {
+    double[][] pathAhead(double lat, double lon, double maxM) { return pathAhead(lat, lon, maxM, Double.NaN); }
+
+    /** Idem ; si heading est connu et part nettement ailleurs que l'itinéraire, null (la voiture le quitte). */
+    double[][] pathAhead(double lat, double lon, double maxM, double heading) {
         Router.Route r = route;
         if (!active || arrived || r == null) return null;
         double kx = 111320.0 * Math.cos(Math.toRadians(lat)), ky = 110540.0;
@@ -232,6 +235,10 @@ final class Nav {
         }
         if (bestI < 0) return null;
         aheadD = bestD;
+        if (!Double.isNaN(heading) && r.cum[bestI + 1] - r.cum[bestI] > 2) {
+            double segB = Math.toDegrees(Math.atan2((r.lon[bestI + 1] - r.lon[bestI]) * kx, (r.lat[bestI + 1] - r.lat[bestI]) * ky));
+            if (Math.abs(Glide.wrap(heading - segB)) > 50) return null;
+        }
         double along = r.cum[bestI] + bestT * (r.cum[bestI + 1] - r.cum[bestI]);
         ArrayList<double[]> pts = new ArrayList<>();
         pts.add(new double[]{r.lat[bestI] + bestT * (r.lat[bestI + 1] - r.lat[bestI]), r.lon[bestI] + bestT * (r.lon[bestI + 1] - r.lon[bestI])});
