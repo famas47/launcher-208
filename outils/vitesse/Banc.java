@@ -166,6 +166,18 @@ public class Banc {
             System.out.println("   avant : " + o.fmt());
             System.out.println("   après : " + n.fmt());
         }
+        // GPS lent, comme sur beaucoup d'autoradios : mesure qui arrive 0,8 s en retard sans le dire
+        System.out.println("\nGPS lent (0,8 s de retard caché), 1 mesure/s : réglage « Réactivité de la vitesse »");
+        String[] lv = {"Normale", "Rapide", "Très rapide"};
+        for (int level = 0; level < 3; level++) {
+            Res n = new Res();
+            for (double[] prof : profs) for (double sg : new double[]{0.1, 0.3}) for (int seed = 1; seed <= 6; seed++) {
+                Speedo sp = new Speedo();
+                sp.react(level);
+                merge(n, run(prof, 1, sg, 0.8, 0.0, false, sp, seed));
+            }
+            System.out.println("   " + lv[level] + " : " + n.fmt());
+        }
     }
 
     static void merge(Res into, Res r) {

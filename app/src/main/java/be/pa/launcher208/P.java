@@ -45,6 +45,7 @@ final class P {
     static final String NAV_VOICE_VOL = "navVoiceVol"; // volume de la voix : 0 très bas, 1 bas, 2 moyen, 3 fort
     static final String SPEED_SIGNS = "speedSigns";    // panneau de limitation de vitesse
     static final String SPEED_OFFSET = "speedOffset";  // km/h ajoutés comme le compteur de la voiture (0 = vitesse GPS)
+    static final String SPEED_REACT = "speedReact";    // réactivité de la vitesse : 0 normale, 1 rapide, 2 très rapide
     static final String MINIMAP = "minimap";
     // Voiture
     static final String ODO_BASE = "odoBase";          // km saisis
@@ -73,6 +74,8 @@ final class P {
 
     // Son
     static final String VOL_METHOD = "volMethod";      // façon de changer le volume (Volume.M_*)
+    static final String VOL_STREAM = "volStream";      // canal d'Android choisi (façon Volume.M_STREAM)
+    static final String VOL_FOUND = "volFound";        // résultat de l'assistant du son (Volume.FOUND_*)
     // Changements de réglages faits une seule fois lors d'une mise à jour
     private static final String MIGR_V8 = "migrV8", MIGR_V9 = "migrV9";
     static final String BT_AUTO = "btAuto";            // allumer le Bluetooth au démarrage
@@ -135,9 +138,13 @@ final class P {
     static boolean speedSigns() { return b(SPEED_SIGNS, true); }
     static final int SPEED_OFFSET_MAX = 10;
     /** Écart du compteur (km/h, atteint dès 50 km/h) : +3 par défaut, ce qu'affichent en général les Peugeot. */
+    /** Réactivité de la vitesse : « Rapide » par défaut (le GPS de beaucoup d'autoradios arrive en retard). */
+    static int speedReact() { int v = i(SPEED_REACT, 1); return v < 0 || v > 2 ? 1 : v; }
     static int speedOffset() { int v = i(SPEED_OFFSET, 3); return v < 0 || v > SPEED_OFFSET_MAX ? 3 : v; }
     static int mapView() { int v = i(MAP_VIEW, MiniMap.VIEW_3D); return v >= 0 && v <= 2 ? v : MiniMap.VIEW_3D; }
     static boolean minimap() { return b(MINIMAP, true); }
-    static int volMethod() { int m = i(VOL_METHOD, Volume.M_MUSIC); return m >= 0 && m < Volume.NAMES.length ? m : Volume.M_MUSIC; }
+    static int volMethod() { int m = i(VOL_METHOD, Volume.M_MUSIC); return m >= Volume.M_MUSIC && m <= Volume.M_PARAM ? m : Volume.M_MUSIC; }
+    static int volStream() { int s = i(VOL_STREAM, 3); return s >= 0 && s <= 30 ? s : 3; }
+    static int volFound() { return i(VOL_FOUND, Volume.FOUND_UNKNOWN); }
     static int volStartMax() { return i(VOL_START_MAX, 15); }
 }

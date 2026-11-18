@@ -8,13 +8,17 @@ import android.location.GnssStatus;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.location.OnNmeaMessageListener;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.SystemClock;
 
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.TimeZone;
 
 /**
  * GPS : vitesse, position, heure, trajets.
@@ -27,7 +31,8 @@ final class LocationTracker implements LocationListener {
     private final Handler h = new Handler(Looper.getMainLooper());
     private final ArrayList<Runnable> listeners = new ArrayList<>();
     private boolean running;
-    private Object gnssCb;
+    private Object gnssCb, nmeaCb;
+    private HandlerThread nmeaThread;
 
     volatile float speedKmh;      // vitesse affichée
     volatile float bearing;
@@ -108,6 +113,7 @@ final class LocationTracker implements LocationListener {
                 gnssCb = cb;
             }
         } catch (Exception ignored) { }
+        startNmea();
         h.removeCallbacks(watchdog);
         h.postDelayed(watchdog, 5000);
     }
@@ -119,6 +125,10 @@ final class LocationTracker implements LocationListener {
             try { lm.unregisterGnssStatusCallback((GnssStatus.Callback) gnssCb); } catch (Exception ignored) { }
         }
         gnssCb = null;
+        if (Build.VERSION.SDK_INT >= 24 && nmeaCb != null) {
+            try { lm.removeNmeaListener((OnNmeaMessageListener) nmeaCb); } catch (Exception ignored) { }
+        }
+        nmeaCb = null;
         running = false;
         h.removeCallbacks(watchdog);
     }
@@ -194,8 +204,23 @@ final class LocationTracker implements LocationListener {
             if (m <= nowMono && nowMono - m < 1500) mono = m;
         }
         // vitesse affichée : toutes les mesures de la puce (jusqu'à 10 par seconde) ; la vitesse calculée
-        // à partir des positions, une fois par seconde
-        if (doppler || slow) App.I.speedo.onFix(mono, kmh / 3.6);
+        // à partir des positions, une fois par seconde. Si la puce envoie ses trames NMEA, la vitesse a déjà
+        // été lue dedans, plus tôt (voir plus bas) : la position ne sert alors qu'à mesurer cette avance.
+        boolean nmeaOn = nmeaMono > 0 && nowMono - nmeaMono < 3000;
+        lastLocEpoch = l.getTime();
+        lastLocMono = mono;
+        if (nmeaOn) {
+            if (Math.abs(l.getTime() - nmeaEpoch) < 60 && !nmeaMatched) {
+                nmeaMatched = true;
+                double lead = mono - nmeaMono; // > 0 : la trame est arrivée avant la position
+                nmeaLeadMs = nmeaLeadMs < -1e8 ? lead : nmeaLeadMs + 0.1 * (lead - nmeaLeadMs);
+                // position datée plus tôt que la trame (puce bien faite) : on garde ce moment-là
+                if (lead < 0) App.I.speedo.retime(nmeaMono, mono);
+            }
+        } else if (doppler || slow) {
+            App.I.speedo.onFix(mono, kmh / 3.6);
+            lastSpeedEpoch = l.getTime();
+        }
         lat = l.getLatitude();
         lon = l.getLongitude();
         lastFixUptime = nowUp;
@@ -237,6 +262,102 @@ final class LocationTracker implements LocationListener {
         if (pendingKm > 0.5f) flushKm();
         if (++fixCount % 30 == 0 || !P.hasPos()) savePos(lat, lon);
         fire();
+    }
+
+    // ---------- Trames NMEA : la vitesse avant la position ----------
+    // Beaucoup de puces GPS d'autoradio envoient leurs trames de texte (NMEA) l'une après l'autre, assez
+    // lentement, et Android ne donne la position qu'une fois toutes arrivées. La trame « RMC » (heure, état,
+    // vitesse) arrive souvent bien avant : on y lit la vitesse dès qu'elle arrive.
+    private volatile long nmeaEpoch = -1;        // heure GPS (ms UTC) de la dernière vitesse lue dans une trame
+    private volatile double nmeaMono;            // moment où cette trame est arrivée (ms, System.nanoTime)
+    private volatile boolean nmeaMatched;        // la position de ce moment est déjà arrivée
+    private volatile long lastSpeedEpoch = -1;   // dernière heure GPS donnée à la vitesse affichée
+    private volatile long lastLocEpoch = -1;     // heure GPS de la dernière position…
+    private volatile double lastLocMono;         // … et moment de sa mesure
+    volatile double nmeaLeadMs = -1e9;           // avance moyenne de la trame sur la position (mode test)
+    volatile int nmeaCount;                      // trames de vitesse lues
+
+    private void startNmea() {
+        if (Build.VERSION.SDK_INT < 24 || nmeaCb != null || lm == null) return;
+        try {
+            if (nmeaThread == null) {
+                nmeaThread = new HandlerThread("gps-nmea");
+                nmeaThread.start();
+            }
+            OnNmeaMessageListener nl = new OnNmeaMessageListener() {
+                @Override public void onNmeaMessage(String message, long timestamp) {
+                    if (!simulating) onNmea(message);
+                }
+            };
+            lm.addNmeaListener(nl, new Handler(nmeaThread.getLooper()));
+            nmeaCb = nl;
+        } catch (Exception ignored) { }
+    }
+
+    /** Pour le mode test : la vitesse est-elle lue dans les trames, et avec combien d'avance ? */
+    String nmeaText() {
+        if (nmeaCount == 0) return "trames NMEA : aucune";
+        if (nmeaLeadMs < -1e8) return "vitesse lue dans les trames NMEA";
+        long ms = Math.round(nmeaLeadMs);
+        return ms >= 20 ? "vitesse lue dans les trames NMEA, " + ms + " ms avant la position"
+                : "vitesse lue dans les trames NMEA (sans avance)";
+    }
+
+    /** Trame d'un trajet simulé (tests seulement). */
+    void simNmea(String m) { onNmea(m); }
+
+    private void onNmea(String m) {
+        double mono = System.nanoTime() / 1e6;
+        double[] r = parseRmc(m);
+        if (r == null) return;
+        long epoch = (long) r[0];
+        if (epoch == lastSpeedEpoch || epoch == nmeaEpoch) return; // déjà lue (position arrivée avant)
+        double kmh = r[1] * 1.852;
+        if (kmh < Math.min(2f, P.driveKmh())) kmh = 0; // le petit « bougé » à l'arrêt
+        boolean locFirst = epoch == lastLocEpoch; // position de ce moment déjà arrivée (puce bien faite)
+        double when = locFirst ? Math.min(mono, lastLocMono) : mono;
+        if (locFirst) {
+            double lead = lastLocMono - mono;
+            nmeaLeadMs = nmeaLeadMs < -1e8 ? lead : nmeaLeadMs + 0.1 * (lead - nmeaLeadMs);
+        }
+        nmeaEpoch = epoch;
+        nmeaMatched = locFirst;
+        nmeaMono = when;
+        lastSpeedEpoch = epoch;
+        nmeaCount++;
+        App.I.speedo.onFix(when, kmh / 3.6);
+    }
+
+    /**
+     * Trame RMC valable : {heure GPS en ms UTC, vitesse en nœuds}, sinon null.
+     * $GPRMC,hhmmss.ss,A,lat,N,lon,E,nœuds,cap,jjmmaa,...*CS (GP, GN, GL, BD... selon les satellites)
+     */
+    static double[] parseRmc(String m) {
+        try {
+            if (m == null || m.length() < 20 || m.charAt(0) != '$' || !m.regionMatches(3, "RMC", 0, 3)) return null;
+            int star = m.indexOf('*');
+            if (star > 0 && star + 2 < m.length() + 1) {
+                // somme de contrôle : une trame abîmée est ignorée
+                int cs = 0;
+                for (int i = 1; i < star; i++) cs ^= m.charAt(i);
+                String hex = m.substring(star + 1, Math.min(m.length(), star + 3)).trim();
+                if (hex.length() == 2 && Integer.parseInt(hex, 16) != cs) return null;
+            }
+            String[] f = (star > 0 ? m.substring(0, star) : m.trim()).split(",", -1);
+            if (f.length < 10 || !"A".equals(f[2]) || f[7].isEmpty() || f[1].length() < 6 || f[9].length() != 6) return null;
+            double knots = Double.parseDouble(f[7]);
+            if (knots < 0 || knots > 200) return null;
+            int hh = Integer.parseInt(f[1].substring(0, 2)), mi = Integer.parseInt(f[1].substring(2, 4));
+            double ss = Double.parseDouble(f[1].substring(4));
+            int dd = Integer.parseInt(f[9].substring(0, 2)), mo = Integer.parseInt(f[9].substring(2, 4));
+            int yy = 2000 + Integer.parseInt(f[9].substring(4, 6));
+            Calendar c = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+            c.clear();
+            c.set(yy, mo - 1, dd, hh, mi, 0);
+            return new double[]{c.getTimeInMillis() + Math.round(ss * 1000), knots};
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private void flushKm() {

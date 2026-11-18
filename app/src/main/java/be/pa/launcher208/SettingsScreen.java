@@ -9,7 +9,7 @@ import android.widget.TextView;
 /** Réglages du launcher (les réglages de l'autoradio restent dans ses écrans d'origine). */
 final class SettingsScreen extends Screen {
     private TextView phoneVal, cpApp, radioApp, musicApp, phoneApp, camApp, retVal, afterVal, kmhVal, odoVal, volVal, clockVal, nightRange, mapStatus, updStatus, version;
-    private TextView mapBtn, updBtn, navStatus, navBtn, offsetVal;
+    private TextView mapBtn, updBtn, navStatus, navBtn, offsetVal, soundVal;
     private View nightRangeRow;
 
     SettingsScreen(HomeActivity a) { super(a); }
@@ -112,10 +112,16 @@ final class SettingsScreen extends Screen {
         add(s, row("Bulle volume", "Sur CarPlay, à glisser où tu veux", bubbleRight), false);
 
         s = section(c1, "Volume");
-        add(s, row("Façon de régler le son", "Choisis celle qui change vraiment le son",
-                Widgets.seg(a, Volume.NAMES, P.volMethod(), new Widgets.IntCb() {
-            @Override public void on(int v) { P.put(P.VOL_METHOD, v); }
-        })), true);
+        // L'assistant essaie chaque façon à l'oreille et garde celle qui change vraiment le son
+        soundVal = U.tv(a, "", 14, Pal.text2, 500);
+        LinearLayout sb = U.row(a);
+        sb.setGravity(Gravity.CENTER_VERTICAL);
+        sb.addView(soundVal);
+        sb.addView(U.gap(a, 12, 1));
+        sb.addView(actionBtn("Trouver", Pal.accent, Pal.WHITE, new Runnable() {
+            @Override public void run() { a.openSoundWizard(); }
+        }), U.lp(U.WR, U.s(42)));
+        add(s, row("Régler le son", "Trouve comment ton autoradio change le son", sb), true);
         LinearLayout tryBtns = U.row(a);
         TextView minus = actionBtn("−", Pal.card2, Pal.text, new Runnable() {
             @Override public void run() { App.I.vol.step(-2); }
@@ -199,6 +205,10 @@ final class SettingsScreen extends Screen {
         offBtns.addView(offsetVal, U.lp(U.WR, U.s(42)));
         offBtns.addView(offPlus, U.lp(U.WR, U.s(42)));
         add(s, row("Vitesse comme le compteur", "Ton compteur affiche un peu plus que le GPS", offBtns), true);
+        add(s, row("Réactivité de la vitesse", "Plus rapide si l'écran est en retard sur le compteur",
+                Widgets.seg(a, new String[]{"Normale", "Rapide", "Très rapide"}, P.speedReact(), new Widgets.IntCb() {
+            @Override public void on(int v) { P.put(P.SPEED_REACT, v); }
+        })), true);
         afterVal = U.tv(a, "", 15, Pal.text, 600);
         add(s, row("Activer après le contact", "Même si la vitesse n'arrive pas", valueBtn(afterVal, new Runnable() {
             @Override public void run() {
@@ -468,6 +478,9 @@ final class SettingsScreen extends Screen {
         int am = P.driveAfter();
         afterVal.setText(am == 0 ? "Non" : am + " min");
         kmhVal.setText(P.driveKmh() + " km/h");
+        int vf = P.volFound();
+        soundVal.setText(vf == Volume.FOUND_YES ? "Trouvé" : vf == Volume.FOUND_NO ? "Impossible ici" : "À faire");
+        soundVal.setTextColor(vf == Volume.FOUND_YES ? Pal.ok : vf == Volume.FOUND_NO ? Pal.ORANGE_D : Pal.text2);
         int off = P.speedOffset();
         offsetVal.setText(off == 0 ? "Aucun" : "+" + off + " km/h");
         long km = LocationTracker.odometer();

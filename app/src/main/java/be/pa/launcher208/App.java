@@ -97,6 +97,7 @@ public class App extends Application {
     int speedShown() {
         float s = simSpeed;
         if (s >= 0) return (int) Math.round(Speedo.dash(s, P.speedOffset()));
+        speedo.react(P.speedReact());
         return speedo.shown(System.nanoTime() / 1e6, P.speedOffset());
     }
 

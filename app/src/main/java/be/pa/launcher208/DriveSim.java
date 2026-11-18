@@ -45,14 +45,21 @@ final class DriveSim {
     private final ArrayList<Double> vErr = new ArrayList<>(), vOld = new ArrayList<>(), cutGap = new ArrayList<>();
     private double nextSpeedT = 3, oldShown = -1, nextOldT = 3, gapMax = -1e9, gapMaxT, gapMaxAlong;
 
-    private DriveSim(double hz, boolean ecart) { this.hz = hz; this.ecart = ecart; }
+    // GPS lent : la position arrive lagMs après la mesure, datée de son arrivée (puce mal faite) ;
+    // avec nmea, la trame de vitesse arrive 0,2 s après la mesure, bien avant la position.
+    private final int lagMs;
+    private final boolean nmea;
 
-    static void start(double hz) { start(hz, false); }
+    private DriveSim(double hz, boolean ecart, int lagMs, boolean nmea) {
+        this.hz = hz; this.ecart = ecart; this.lagMs = lagMs; this.nmea = nmea;
+    }
+
+    static void start(double hz) { start(hz, false, 0, false); }
 
     /** ecart : en navigation, la voiture quitte l'itinéraire au premier virage (elle continue tout droit). */
-    static void start(final double hz, boolean ecart) {
+    static void start(final double hz, boolean ecart, int lagMs, boolean nmea) {
         if (cur != null) cur.stop("remplacé");
-        final DriveSim s = new DriveSim(hz, ecart);
+        final DriveSim s = new DriveSim(hz, ecart, lagMs, nmea);
         cur = s;
         final double lat = App.I.loc.lat != 0 ? App.I.loc.lat : P.lat(), lon = App.I.loc.lon != 0 ? App.I.loc.lon : P.lon();
         new Thread(new Runnable() {
@@ -223,6 +230,8 @@ final class DriveSim {
         running = true;
         App.I.simSpeed = -1;
         App.I.loc.simulating = true;
+        App.I.speedo.react(P.speedReact());
+        App.I.speedo.reset();
         t0Ns = System.nanoTime();
         fixN = 0;
         App.I.main.post(fixTask);
@@ -232,7 +241,9 @@ final class DriveSim {
     private final Runnable fixTask = new Runnable() {
         @Override public void run() {
             if (!running) return;
-            double t = (System.nanoTime() - t0Ns) / 1e9 - 0.15; // mesure faite 0,15 s avant la réception
+            // mesure faite 0,15 s avant la réception (GPS lent : la trame 0,2 s après, la position lagMs après)
+            double recv = lagMs > 0 ? (nmea ? 0.2 : lagMs / 1000.0) : 0.15;
+            double t = (System.nanoTime() - t0Ns) / 1e9 - recv;
             double[] tr = truth(t);
             double a = 0.75, q = 2.5 * Math.sqrt(1 - a * a);
             nx = a * nx + q * rnd.nextGaussian();
@@ -247,7 +258,23 @@ final class DriveSim {
             l.setSpeed((float) v);
             if (tr[4] > 1.5) l.setBearing((float) Glide.norm(Math.toDegrees(Math.atan2(tr[2], tr[3])) + rnd.nextGaussian() * 3));
             l.setAccuracy(5f);
-            App.I.loc.simFix(l);
+            if (lagMs > 0) {
+                // heure GPS de la mesure (exacte), position datée de son arrivée
+                long epoch = System.currentTimeMillis() - Math.round(recv * 1000);
+                epoch -= epoch % 100; // les puces mesurent sur des dixièmes de seconde ronds
+                l.setTime(epoch);
+                if (nmea) App.I.loc.simNmea(rmc(epoch, l.getLatitude(), l.getLongitude(), v, l.hasBearing() ? l.getBearing() : 0));
+                final Location fl = l;
+                App.I.main.postDelayed(new Runnable() {
+                    @Override public void run() {
+                        if (!running) return;
+                        if (Build.VERSION.SDK_INT >= 17) fl.setElapsedRealtimeNanos(SystemClock.elapsedRealtimeNanos());
+                        App.I.loc.simFix(fl);
+                    }
+                }, nmea ? lagMs - 200 : 0);
+            } else {
+                App.I.loc.simFix(l);
+            }
             fixN++;
             if (t > tEnd + 6) { stop("fin"); return; }
             long next = t0Ns + (long) (fixN * 1e9 / hz);
@@ -334,6 +361,23 @@ final class DriveSim {
             if (d < best) { best = d; along = r.cum[i] + tt * (r.cum[i + 1] - r.cum[i]); }
         }
         return along;
+    }
+
+    /** Trame NMEA RMC (comme une puce GPS) : heure, position, vitesse en nœuds, cap, date, somme de contrôle. */
+    static String rmc(long utcMs, double lat, double lon, double mps, double course) {
+        java.util.Calendar c = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
+        c.setTimeInMillis(utcMs);
+        double alat = Math.abs(lat), alon = Math.abs(lon);
+        int dlat = (int) alat, dlon = (int) alon;
+        String body = String.format(Locale.ROOT, "GPRMC,%02d%02d%02d.%02d,A,%02d%07.4f,%s,%03d%07.4f,%s,%.2f,%.1f,%02d%02d%02d,,,A",
+                c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE), c.get(java.util.Calendar.SECOND),
+                c.get(java.util.Calendar.MILLISECOND) / 10,
+                dlat, (alat - dlat) * 60, lat >= 0 ? "N" : "S", dlon, (alon - dlon) * 60, lon >= 0 ? "E" : "W",
+                mps / 0.514444, course, c.get(java.util.Calendar.DAY_OF_MONTH), c.get(java.util.Calendar.MONTH) + 1,
+                c.get(java.util.Calendar.YEAR) % 100);
+        int cs = 0;
+        for (int i = 0; i < body.length(); i++) cs ^= body.charAt(i);
+        return "$" + body + String.format(Locale.ROOT, "*%02X", cs);
     }
 
     private static double pct(ArrayList<Double> v, double p) {

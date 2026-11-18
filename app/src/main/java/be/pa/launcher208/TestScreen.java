@@ -148,7 +148,8 @@ final class TestScreen extends Screen {
         check(s, "Volume (musique Android)", new Status() {
             @Override public String get() {
                 String e = App.I.vol.lastError;
-                return App.I.vol.get() + " / " + App.I.vol.max() + " · façon : " + Volume.NAMES[Math.max(0, Math.min(Volume.NAMES.length - 1, P.volMethod()))]
+                return App.I.vol.get() + " / " + App.I.vol.max() + " · façon : " + Volume.label()
+                        + (P.volFound() == Volume.FOUND_YES ? " (trouvée par l'assistant)" : P.volFound() == Volume.FOUND_NO ? " (assistant : aucune ne marche)" : "")
                         + (App.I.vol.fixed() ? " · volume Android bloqué par l'autoradio" : "") + (e.isEmpty() ? "" : " · erreur " + e);
             }
         }, null, null);
@@ -220,7 +221,8 @@ final class TestScreen extends Screen {
                 return (l.hasFix() ? "position OK" : "recherche…") + " · " + l.satsUsed + "/" + l.sats + " satellites · "
                         + Math.round(l.speedKmh) + " km/h GPS (écran " + Math.max(0, App.I.speedShown()) + ")"
                         + String.format(java.util.Locale.ROOT, " · précision ±%.1f km/h", App.I.speedo.noise() * 3.6)
-                        + (hz > 0 ? " · " + (hz >= 1.5 ? String.format(java.util.Locale.ROOT, "%.0f", hz) : "1") + " position(s)/s" : "");
+                        + (hz > 0 ? " · " + (hz >= 1.5 ? String.format(java.util.Locale.ROOT, "%.0f", hz) : "1") + " position(s)/s" : "")
+                        + " · " + l.nmeaText();
             }
         }, null, null);
         check(s, "Heure", new Status() {
@@ -307,7 +309,9 @@ final class TestScreen extends Screen {
     interface Status { String get(); }
 
     /** Paquets des applis système du fabricant (radio, Bluetooth...), regroupés : ils disent quel système c'est. */
-    private String vendorApps() {
+    private String vendorApps() { return vendorApps(a); }
+
+    static String vendorApps(android.content.Context a) {
         try {
             android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_LAUNCHER);
             java.util.TreeSet<String> set = new java.util.TreeSet<>();

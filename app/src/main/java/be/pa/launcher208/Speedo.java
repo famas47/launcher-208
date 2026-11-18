@@ -23,6 +23,7 @@ final class Speedo {
     double deadA = 0.4;        // m/s² : accélération sous laquelle la vitesse est considérée stable
     double tauMs = 400;         // avance de moins en moins loin (constante de temps)
     double maxAheadMs = 1500;   // au plus 1,5 s d'avance
+    double leadMs = 0;          // retard du GPS invisible dans l'heure des mesures (réglage « Réactivité »)
     double staleMs = 5000;      // plus de mesure depuis 5 s : vitesse inconnue (tiret)
     double hyst = 0.3;          // km/h de marge avant de changer de chiffre
 
@@ -75,6 +76,27 @@ final class Speedo {
         while (count > 1 && ms - t[start] > keep) { start = (start + 1) % CAP; count--; }
     }
 
+    /** La dernière mesure a été faite plus tôt qu'annoncé (même mesure reçue par deux chemins). */
+    synchronized void retime(double was, double ms) {
+        if (count == 0) return;
+        int li = (start + count - 1) % CAP;
+        if (Math.abs(t[li] - was) > 0.5 || ms >= t[li]) return;
+        int pi = (start + count - 2 + CAP) % CAP;
+        if (count >= 2 && ms <= t[pi]) return; // garder les mesures dans l'ordre
+        t[li] = ms;
+    }
+
+    /** Réactivité (réglage) : 0 normale, 1 rapide, 2 très rapide (pour un GPS qui arrive en retard). */
+    synchronized void react(int level) {
+        if (level == react) return;
+        react = level;
+        leadMs = level == 2 ? 1000 : level == 1 ? 500 : 0;
+        tauMs = level == 2 ? 1000 : level == 1 ? 700 : 400;
+        deadA = level == 2 ? 0.25 : level == 1 ? 0.3 : 0.4;
+    }
+
+    private int react = 0;
+
     /** Vraie vitesse estimée (m/s) au moment now (ms, même horloge), ou -1 si inconnue. */
     synchronized double mps(double now) {
         if (count == 0) return -1;
@@ -85,6 +107,8 @@ final class Speedo {
         // droite des moindres carrés sur les mesures récentes (temps relatifs à la dernière)
         double[] f = fit(lt, windowMs);
         double fit = f == null ? lv : f[0], a = f == null ? 0 : f[1];
+        double h = Math.max(0, Math.min(maxAheadMs, now - lt) + leadMs) / 1000.0, tau = tauMs / 1000.0;
+        double ahead = tau > 0 ? tau * (1 - Math.exp(-h / tau)) : h;
         // pente plus faible que ce que le bruit peut donner : vitesse stable
         if (steadyMs > windowMs && (f == null || Math.abs(a) < deadA + 2 * noise / Math.sqrt(f[2]))) {
             // la même droite sur plus longtemps, si elle confirme : bruit bien plus faible, chiffre calme
@@ -94,8 +118,6 @@ final class Speedo {
         a = Math.max(-8, Math.min(5, a));
         // petite accélération : bruit de mesure, vitesse stable
         a = a > 0 ? Math.max(0, a - deadA) : Math.min(0, a + deadA);
-        double h = Math.max(0, Math.min(maxAheadMs, now - lt)) / 1000.0, tau = tauMs / 1000.0;
-        double ahead = tau > 0 ? tau * (1 - Math.exp(-h / tau)) : h;
         double est = fit + a * ahead;
         // pendant un freinage, ne pas annoncer l'arrêt avant la puce
         return Math.max(est, lv > 0 ? 0.3 : 0);

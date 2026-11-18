@@ -36,6 +36,7 @@ public class HomeActivity extends Activity {
     private int screen = S_HOME;
     private DriveScreen drive;
     private NavSearch navSearch;
+    private SoundWizard soundWizard;
     private boolean driving, resumed, nightNow;
     private final DriveRule rule = new DriveRule();
     private int lastMinute = -1;
@@ -213,6 +214,7 @@ public class HomeActivity extends Activity {
         if (drive != null) { drive.onHide(); drive.destroy(); drive = null; }
         boolean navOpen = navSearch != null && navSearch.view().getParent() != null;
         if (navSearch != null) { navSearch.destroy(); navSearch = null; }
+        if (soundWizard != null) { soundWizard.destroy(); soundWizard = null; }
         root.removeAllViews();
         root.setBackgroundColor(Pal.bg);
         mainRow = U.row(this);
@@ -247,6 +249,22 @@ public class HomeActivity extends Activity {
     }
 
     boolean navOpen() { return navSearch != null && navSearch.view().getParent() != null; }
+
+    // ---------- Assistant « Régler le son » ----------
+    void openSoundWizard() {
+        if (soundWizard == null) soundWizard = new SoundWizard(this);
+        View v = soundWizard.view();
+        if (v.getParent() == null) root.addView(v, new FrameLayout.LayoutParams(U.M, U.M));
+        v.bringToFront();
+        soundWizard.onShow();
+    }
+
+    void closeSoundWizard() {
+        if (soundWizard != null && soundWizard.view().getParent() != null) root.removeView(soundWizard.view());
+        if (screens[S_SETTINGS] != null) screens[S_SETTINGS].refresh();
+    }
+
+    boolean soundWizardOpen() { return soundWizard != null && soundWizard.view().getParent() != null; }
 
     /** Navigation démarrée : on passe en mode conduite pour voir le trajet sur la carte. */
     void showNavigation() {
@@ -508,7 +526,16 @@ public class HomeActivity extends Activity {
         if (i.hasExtra("test_nav_ouvrir")) openNav();
         if (i.hasExtra("test_nav_arreter")) App.I.nav.stop();
         if (i.hasExtra("test_nav_telecharger")) App.I.navData.download(this);
-        if (i.hasExtra("test_simu")) DriveSim.start(i.getIntExtra("test_simu", 1), i.getIntExtra("test_simu_ecart", 0) == 1);
+        if (i.hasExtra("test_son")) {
+            int v = i.getIntExtra("test_son", 1);
+            if (v == 1) { openSoundWizard(); soundWizard.begin(); }
+            else if (soundWizard != null && soundWizardOpen()) soundWizard.close();
+        }
+        if (i.hasExtra("test_son_fait") && soundWizard != null) soundWizard.listenDone();
+        if (i.hasExtra("test_son_reponse") && soundWizard != null) soundWizard.answer(i.getIntExtra("test_son_reponse", 0) == 1);
+        if (i.hasExtra("test_reactivite")) P.put(P.SPEED_REACT, i.getIntExtra("test_reactivite", 1));
+        if (i.hasExtra("test_simu")) DriveSim.start(i.getIntExtra("test_simu", 1), i.getIntExtra("test_simu_ecart", 0) == 1,
+                i.getIntExtra("test_simu_retard", 0), i.getIntExtra("test_simu_nmea", 0) == 1);
         if (i.hasExtra("test_simu_stop")) DriveSim.stopNow();
         if (i.hasExtra("test_coller")) P.put(P.MAP_SNAP, i.getIntExtra("test_coller", 1) == 1);
         if (i.hasExtra("test_maj")) App.I.upd.check(this);
@@ -522,7 +549,8 @@ public class HomeActivity extends Activity {
                     + " Ko | meteo=" + (App.I.weather.fresh() ? App.I.weather.temp() + "°" : "aucune") + " | heure_suspecte=" + Clock.suspicious()
                     + " | ecart_internet_s=" + (Net.offset() / 1000) + " | tls=" + Net.lastTlsFix + " | conduite=" + driving + " | contact_s=" + (App.I.sinceContact() / 1000)
                     + " | apres_min=" + P.driveAfter() + " | attente_arret=" + rule.waitingAfterHand()
-                    + " | kmh=" + P.driveKmh() + " | vitesse_affichee=" + App.I.speedShown() + " ecart_compteur=" + P.speedOffset() + " | vol=" + App.I.vol.get() + "/" + App.I.vol.max() + " methode=" + P.volMethod()
+                    + " | kmh=" + P.driveKmh() + " | vitesse_affichee=" + App.I.speedShown() + " ecart_compteur=" + P.speedOffset() + " | vol=" + App.I.vol.get() + "/" + App.I.vol.max() + " methode=" + P.volMethod() + " canal=" + P.volStream()
+                    + " trouve=" + P.volFound() + " assistant=" + (soundWizardOpen() ? soundWizard.state() : -1)
                     + " fixe=" + App.I.vol.fixed() + " err=" + App.I.vol.lastError + " | carplay_auto=" + P.carplayAuto()
                     + " | bt=" + (BtPower.present(this) ? (BtPower.isOn(this) ? "on" : "off") : "absent") + " btlast=" + BtPower.last
                     + " | cp_action=" + PhoneWatch.lastAction + " | cap=" + Math.round(App.I.loc.bearing)
@@ -555,10 +583,12 @@ public class HomeActivity extends Activity {
     /** Écoute du volume (mode test) : note les touches que l'autoradio envoie. */
     @Override public boolean dispatchKeyEvent(android.view.KeyEvent e) {
         VolumeSpy.onKey(e);
+        SoundWizard.onKey(e);
         return super.dispatchKeyEvent(e);
     }
 
     @Override public void onBackPressed() {
+        if (soundWizardOpen()) { soundWizard.close(); return; }
         if (navOpen()) { navSearch.close(); return; }
         if (screen == S_CONN || screen == S_TEST) showScreen(S_SETTINGS);
         else if (screen != S_HOME) showScreen(S_HOME);

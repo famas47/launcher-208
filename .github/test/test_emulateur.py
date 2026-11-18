@@ -384,7 +384,7 @@ log('  vues de la carte : captures 13-carte-a-plat, 13-carte-nord-en-haut, 13-ca
 
 
 # ---------- Trajet simulé sur de vraies routes : précision et fluidité de la carte ----------
-def simu(nom, hz=1, coller=1, video=False, captures=False):
+def simu(nom, hz=1, coller=1, video=False, captures=False, retard=0, nmea=0):
     """Trajet d'environ 1 km dans Mons (démarrage, virages, arrêt) avec un GPS réaliste (erreur de 2,5 m)."""
     hook(vitesse=-1)
     time.sleep(1.5)
@@ -393,7 +393,7 @@ def simu(nom, hz=1, coller=1, video=False, captures=False):
     hook(coller=coller, carte_vue=0, carte_couleurs=0)
     avant = len(re.findall(r'simu (?:fin|arrêté|remplacé)', adb('logcat -d -s Test208:I')))
     gfx_reset()
-    hook(simu=hz)
+    hook(simu_retard=retard, simu_nmea=nmea, simu=hz)
     rec = None
     if video:
         rec = subprocess.Popen('adb shell screenrecord --time-limit 25 --bit-rate 6000000 /sdcard/simu.mp4',
@@ -573,6 +573,14 @@ simu('3d-collee', video=True, captures=True)
 simu('3d-sans-collage', coller=0)
 if API >= 35:
     simu('3d-gps-5hz', hz=5)
+    # GPS lent comme sur beaucoup d'autoradios : position 0,8 s en retard, datée de son arrivée
+    log('  GPS lent (position 0,8 s en retard) : réactivité normale, rapide, puis trames NMEA en avance')
+    hook(reactivite=0)
+    simu('gps-lent-normale', retard=800)
+    hook(reactivite=1)
+    simu('gps-lent-rapide', retard=800)
+    simu('gps-lent-nmea', retard=800, nmea=1)
+    etat('après les trajets GPS lent')
 hook(coller=1)
 hook(vitesse=-1)
 time.sleep(1)
@@ -670,6 +678,68 @@ ec = re.findall(r'ecoute volume : (.*)', adb('logcat -d -s Test208:I'))
 ec = ec[-1] if ec else '(pas de réponse)'
 log('  ce que l\'écoute a vu :', ec)
 log('  verdict écoute :', 'OK' if ('VOLUME_UP' in ec and 'VOLUME_DOWN' in ec) else 'ANORMAL')
+
+# ---------- Assistant « Régler le son » ----------
+log('\n--- Assistant « Régler le son » (bouton de l\'autoradio simulé, réponses données par le test) ---')
+phase('assistant son')
+
+
+def etat_q():
+    hook(etat=1)
+    time.sleep(1.2)
+    l = re.findall(r'etat (.*)', adb('logcat -d -s Test208:I'))
+    return l[-1] if l else ''
+
+
+def attendre_question(maxs=12):
+    t0 = time.time()
+    while time.time() - t0 < maxs:
+        if 'assistant=3' in etat_q():
+            return True
+        time.sleep(0.8)
+    return False
+
+
+hook(son=1)
+time.sleep(1.5)
+shot('40-son-ecoute', 0)
+adb('shell input keyevent KEYCODE_VOLUME_UP')
+time.sleep(0.8)
+adb('shell input keyevent KEYCODE_VOLUME_DOWN')
+time.sleep(1.5)
+shot('41-son-vu', 0)
+hook(son_fait=1)
+time.sleep(2.5)
+shot('42-son-essai', 0)
+q = attendre_question()
+shot('43-son-question', 0)
+hook(son_reponse=1)
+time.sleep(1.5)
+shot('44-son-trouve', 0)
+r = etat('assistant (oui au 1er essai)', 0.5)
+log('  verdict assistant trouvé :', 'OK' if q and 'trouve=1' in r and 'assistant=4' in r else 'ANORMAL')
+hook(son=0)
+time.sleep(1)
+# « non » à tous les essais : l'assistant doit le dire et proposer la photo
+hook(son=1)
+time.sleep(1)
+hook(son_fait=1)
+n_ess = 0
+for k in range(8):
+    if not attendre_question():
+        break
+    hook(son_reponse=0)
+    n_ess += 1
+    time.sleep(1)
+time.sleep(1)
+shot('45-son-pas-trouve', 0)
+r = etat('assistant (non partout, %d essais)' % n_ess, 0.5)
+log('  verdict assistant pas trouvé :', 'OK' if 'trouve=2' in r and 'assistant=5' in r and 'methode=0' in r else 'ANORMAL')
+hook(son=0)
+time.sleep(1)
+hook(ecran=2)
+shot('46-reglages-son', 2)
+hook(ecran=0)
 
 # ---------- Mode conduite après le contact (réglage « Activer après le contact ») ----------
 log('\n--- Mode conduite après le contact (réglage 2 min, GPS sans vitesse) ---')
