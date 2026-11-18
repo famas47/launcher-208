@@ -205,7 +205,7 @@ final class SettingsScreen extends Screen {
         offBtns.addView(offsetVal, U.lp(U.WR, U.s(42)));
         offBtns.addView(offPlus, U.lp(U.WR, U.s(42)));
         add(s, row("Vitesse comme le compteur", "Ton compteur affiche un peu plus que le GPS", offBtns), true);
-        add(s, row("Réactivité de la vitesse", "Plus rapide si l'écran est en retard sur le compteur",
+        add(s, row("Réactivité de la vitesse", "Si l'écran est en retard sur le compteur",
                 Widgets.seg(a, new String[]{"Normale", "Rapide", "Très rapide"}, P.speedReact(), new Widgets.IntCb() {
             @Override public void on(int v) { P.put(P.SPEED_REACT, v); }
         })), true);
